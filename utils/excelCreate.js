@@ -25,8 +25,9 @@ const exportStationFieldsToExcel = async (data,fileName = "station_report.xlsx",
   // Add Date-Time to File Name
   const ext = path.extname(fileName); // .xlsx
   const baseName = path.basename(fileName, ext);
+  const signature = "skrawal007"; // Unique signature to identify the file
 
-  const finalFileName = `${baseName}_${formattedDateTime}${ext}`;
+  const finalFileName = `${signature}_${baseName}_${formattedDateTime}${ext}`;
 
   
 

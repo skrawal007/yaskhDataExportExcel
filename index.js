@@ -1792,57 +1792,59 @@ const yakshPuppeteerpro = async () => {
 
 
      // ======================================================
-    // ================= For windows broswer ===============
-    // ======================================================
-// ========================================
+     // ================= For windows broswer ===============
+     // ======================================================
+
+    // ========================================
     // For Windows ..........................
     // =========================================
 
-      //     browser = await puppeteer.launch({
-      //      headless: true,
+    //     browser = await puppeteer.launch({
+    //      headless: true,
 
-      //   executablePath:
-      //     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    //   executablePath:
+    //     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 
-      //   userDataDir: "C:\\puppeteer-sessions\\chrome-data",
+    //   userDataDir: "C:\\puppeteer-sessions\\chrome-data",
 
-      //   protocolTimeout: 300000,
+    //   protocolTimeout: 300000,
 
-      //   defaultViewport: null,
+    //   defaultViewport: null,
 
-      //   ignoreDefaultArgs: ["--enable-automation"],
+    //   ignoreDefaultArgs: ["--enable-automation"],
 
-      //   args: [
-      //     "--start-maximized",
+    //   args: [
+    //     "--start-maximized",
 
-      //     // stability
-      //     "--no-sandbox",
-      //     "--disable-setuid-sandbox",
-      //     "--disable-dev-shm-usage",
+    //     // stability
+    //     "--no-sandbox",
+    //     "--disable-setuid-sandbox",
+    //     "--disable-dev-shm-usage",
 
-      //     // reduce crashes
-      //     "--disable-gpu",
-      //     "--disable-crash-reporter",
-      //     "--disable-extensions",
-      //     "--disable-sync",
+    //     // reduce crashes
+    //     "--disable-gpu",
+    //     "--disable-crash-reporter",
+    //     "--disable-extensions",
+    //     "--disable-sync",
 
-      //     // anti detection
-      //     "--disable-blink-features=AutomationControlled",
+    //     // anti detection
+    //     "--disable-blink-features=AutomationControlled",
 
-      //     // background optimization
-      //     "--disable-renderer-backgrounding",
-      //     "--disable-background-timer-throttling",
-      //     "--disable-backgrounding-occluded-windows",
+    //     // background optimization
+    //     "--disable-renderer-backgrounding",
+    //     "--disable-background-timer-throttling",
+    //     "--disable-backgrounding-occluded-windows",
 
-      //     // site issues
-      //     "--disable-features=IsolateOrigins,site-per-process",
-      //     "--disable-features=TranslateUI",
+    //     // site issues
+    //     "--disable-features=IsolateOrigins,site-per-process",
+    //     "--disable-features=TranslateUI",
 
-      //     // memory stability
-      //     "--memory-pressure-off",
-      //     "--max_old_space_size=4096",
-      //   ],
-      // });
+    //     // memory stability
+    //     "--memory-pressure-off",
+    //     "--max_old_space_size=4096",
+    //   ],
+    // });
+
 
     // ================= PAGE =================
     const page = await browser.newPage();
