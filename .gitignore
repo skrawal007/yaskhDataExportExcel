@@ -1,0 +1,42 @@
+# Common
+node_modules/
+.env
+.DS_Store
+
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# VS Code/IDE
+*.code-workspace
+.vscode/
+
+# Node
+package-lock.json
+node_modules/
+npm-debug.log*
+
+# Puppeteer/Data
+model/
+
+# Reports/Zips
+*.xlsx
+*.zip
+*.sql
+
+# Parent ignores (won't affect ../ paths)
+../*.DS_Store
+
+
+# macOS/Parents
+**/.DS_Store
+../../*.*
+../*.zip
+../*-backup.sql
+# Sibling projects (optional)
+../phpMyAdmin/
+../copsuvidha*/
+../onlinegd/
+../whatsAppDailyReport/
+../../Productions/

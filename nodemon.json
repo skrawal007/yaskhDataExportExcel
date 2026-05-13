@@ -1,0 +1,6 @@
+{
+  "ignore": [
+    "chrome-data/*",
+    "/Users/apple/puppeteer-sessions/*"
+  ]
+}
