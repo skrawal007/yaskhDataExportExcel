@@ -2,7 +2,7 @@
 node_modules/
 .env
 .DS_Store
-
+indexcopy.js
 
 # macOS
 .DS_Store

@@ -1745,7 +1745,7 @@ const yakshPuppeteerpro = async () => {
     // ======================================================
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
 
       executablePath:
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
