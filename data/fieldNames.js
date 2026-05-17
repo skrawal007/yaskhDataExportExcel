@@ -50,6 +50,14 @@ const recordFields_Juridiction_dcrb = [
   // "Death",
   // "Jail",
 ];
+
+const recordFields_myJurisdiction_header = [
+  "myJurisdiction DCRB Approved",
+  "myJurisdiction Beat Verification Pending",
+  "myJurisdiction Beat Verification Completed",
+  "myJurisdiction Incorrect Address Reported by Beat Officer",
+];
+
 const recordFields_excel = [
   "Name (NF)",
   "Alias (NF)",
@@ -95,6 +103,11 @@ const recordFields_excel = [
   "Verification %",
   "Pending to Verify",
   "Pending %",
+
+  "myJurisdiction DCRB Approved",
+  "myJurisdiction Beat Verification Pending",
+  "myJurisdiction Beat Verification Completed",
+  "myJurisdiction Incorrect Address Reported by Beat Officer",
 ];
 
 module.exports = {
@@ -102,4 +115,5 @@ module.exports = {
   recordFields_Juridiction,
   recordFields_Juridiction_dcrb,
   recordFields_excel,
+  recordFields_myJurisdiction_header
 };

@@ -1,5 +1,5 @@
 const{recordFields_excel}=require("../data/fieldNames");
-
+const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
 
@@ -85,11 +85,44 @@ const exportStationFieldsToExcel = async (data,fileName = "station_report.xlsx",
   });
 
   // Save File
-  await workbook.xlsx.writeFile(finalFileName);
+  // await workbook.xlsx.writeFile(finalFileName);
 
-  console.log(`Excel file created: ${finalFileName}`);
+//   const downloadPath = path.join(
+//   require("os").homedir(),
+//   "Downloads",
+//   finalFileName
+// );
 
-  return finalFileName;
+// await workbook.xlsx.writeFile(downloadPath);
+
+//   // console.log(`Excel file created: ${finalFileName}`);
+
+//   // return finalFileName;
+
+//   console.log(`Excel file created: ${downloadPath}`);
+
+//   return downloadPath;
+
+
+const downloadDir = path.join(__dirname, "../downloads");
+
+// create downloads folder if not exists
+if (!fs.existsSync(downloadDir)) {
+  fs.mkdirSync(downloadDir, {
+    recursive: true,
+  });
+}
+
+const downloadPath = path.join(
+  downloadDir,
+  finalFileName
+);
+
+await workbook.xlsx.writeFile(downloadPath);
+
+console.log(`Excel file created: ${downloadPath}`);
+
+return downloadPath;
 };
 
 

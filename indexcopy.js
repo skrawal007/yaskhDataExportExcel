@@ -1,19 +1,16 @@
 require("dotenv").config();
 
-const {circle_station}=require("./data/stationData")
-const{recordFields_info,recordFields_Juridiction,recordFields_Juridiction_dcrb}=require("./data/fieldNames");
-const {groupCircleStations,getCircleNames}=require("./utils/groupCircleStation");
-const {mergeArrayData}=require("./utils/mergeArrayData");
-const {exportStationFieldsToExcel}=require("./utils/excelCreate");
+const { circle_station } = require("./data/stationData");
+const { recordFields_myJurisdiction_header } = require("./data/fieldNames");
+const {
+  groupCircleStations,
+  getCircleNames,
+} = require("./utils/groupCircleStation");
+const { mergeArrayData } = require("./utils/mergeArrayData");
+const { exportStationFieldsToExcel } = require("./utils/excelCreate");
 const puppeteer = require("puppeteer");
 
-
-
-const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
- 
-
- 
-  
+const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
   //============ GO TO PAGE =============================
 
   await page.goto(
@@ -35,382 +32,331 @@ const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
   // wait page load
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
-
   try {
-  
-  // ================= GROUP DATA =================
-
+    // ================= GROUP DATA =================
 
     const grouped = await groupCircleStations(circle_station);
-
 
     // ================= FINAL RESULT ARRAY =================
 
     const finalResults = [];
 
-    // ================= CIRCLE LOOP =================
+    // =====================================================
+    // ================= FIELD LOOP =========================
+    // =====================================================
 
-    for (const circle_name of Object.keys(grouped)) {
-      const stations = grouped[circle_name];
+    for (let field of recordFields_myJurisdiction_header) {
+      field = field.trim();
 
-      // ================= SELECT CIRCLE =================
+      let tabid = "";
 
-      await page.click("#rc_select_0");
+      if (field == "myJurisdiction DCRB Approved") {
+        tabid = "#rc-tabs-0-tab-approved";
+      } else if (field == "myJurisdiction Beat Verification Pending") {
+        tabid = "#rc-tabs-0-tab-verification_pending";
+      } else if (field == "myJurisdiction Beat Verification Completed") {
+        tabid = "#rc-tabs-0-tab-verified";
+      } else if (
+        field == "myJurisdiction Incorrect Address Reported by Beat Officer"
+      ) {
+        tabid = "#rc-tabs-0-tab-incorrect_address";
+      }
 
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", ""),
-      );
+      // ================= INVALID TAB =================
 
-      await page.waitForSelector(".ant-select-item-option");
+      if (!tabid) {
+        console.log("❌ INVALID TAB =>", field);
 
-      await page.evaluate((circleName) => {
-        const options = document.querySelectorAll(".ant-select-item-option");
+        continue;
+      }
 
-        for (const option of options) {
-          if (option.innerText.includes(circleName)) {
-            option.click();
+      // ================= CLICK TAB =================
 
-            break;
-          }
-        }
-      }, circle_name);
+      await page.click(tabid);
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
-      // ================= STATION LOOP =================
+      console.log("\n==============================");
+      console.log("TAB =>", field);
+      console.log("==============================\n");
 
-      for (const stationName of stations) {
+      // =====================================================
+      // ================= CIRCLE LOOP ========================
+      // =====================================================
+
+      for (const circle_name of Object.keys(grouped)) {
+        const stations = grouped[circle_name];
+
         try {
-          // ================= CLEAR OLD STATION =================
+          // ================= CLEAR OLD CIRCLE =================
 
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            const select = allSelects[1];
-
-            if (!select) return;
-
-            const clearBtn = select.querySelector(".ant-select-clear");
-
-            if (clearBtn) {
-              clearBtn.click();
-            }
+          await page.click("#rc_select_0", {
+            clickCount: 3,
           });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= SELECT STATION =================
-
-          await page.click("#rc_select_1");
-
-          await page.type("#rc_select_1", stationName);
-
-          await page.waitForSelector(".ant-select-item-option");
-
-          await page.evaluate((station) => {
-            const normalize = (str) =>
-              str.toLowerCase().replace(/\s+/g, " ").trim();
-
-            const target = normalize(station);
-
-            const items = document.querySelectorAll(".ant-select-item-option");
-
-            for (const el of items) {
-              const text = normalize(el.innerText);
-
-              if (text === target) {
-                el.click();
-
-                return;
-              }
-            }
-          }, stationName);
-
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-
-
-        // ================= STATION RESULT OBJECT =================
-        const stationResult = {
-          circle_name: circle_name,
-          station_name: stationName,
-          fields: {},
-        };
-
-// =====================================================
-// ================= STATUS LOOP =======================
-// =====================================================
-  for (const field of recordFields_Juridiction_dcrb) {
-          // ================= CLEAR OLD FIELD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            // third select = Select Record
-            const select = allSelects[5];
-
-            if (!select) return;
-
-            const clearBtn = select.querySelector(".ant-select-clear");
-
-            if (clearBtn) {
-              clearBtn.dispatchEvent(
-                new MouseEvent("mousedown", { bubbles: true }),
-              );
-
-              clearBtn.click();
-            }
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= OPEN SELECT RECORD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            const select = allSelects[5];
-
-            if (!select) return;
-
-            const selector = select.querySelector(".ant-select-selector");
-
-            if (selector) selector.click();
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= TYPE FIELD =================
-          const inputs = await page.$$(".ant-select-selection-search-input");
-
-          const input = inputs[5];
-
-          if (!input) {
-            console.log("INPUT NOT FOUND");
-            continue;
-          }
-
-          await input.click({ clickCount: 3 });
 
           await page.keyboard.press("Backspace");
 
-          await input.type(field, {
-            delay: 70,
-          });
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // ================= WAIT OPTIONS =================
+          // ================= SELECT CIRCLE =================
+
+          await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
+
           await page.waitForFunction(() => {
             return (
               document.querySelectorAll(".ant-select-item-option").length > 0
             );
           });
 
-          // ================= SELECT EXACT OPTION =================
-          const selected = await page.evaluate((fieldName) => {
+          const circleSelected = await page.evaluate((circleName) => {
             const normalize = (str) =>
-              str
-                .toLowerCase()
-                .replace(/[^a-z0-9 ]/g, "")
-                .replace(/\s+/g, " ")
-                .trim();
+              str.toLowerCase().replace(/\s+/g, " ").trim();
 
-            const target = normalize(fieldName);
+            const target = normalize(circleName);
 
-            const items = document.querySelectorAll(".ant-select-item-option");
+            const options = document.querySelectorAll(
+              ".ant-select-item-option",
+            );
 
-            for (const el of items) {
-              const text = normalize(el.innerText);
+            for (const option of options) {
+              const text = normalize(option.innerText);
 
-              if (text === target) {
-                el.click();
+              if (text.includes(target)) {
+                option.click();
+
                 return true;
               }
             }
 
             return false;
-          }, field);
+          }, circle_name);
 
-          // if (!selected) {
-          //   console.log("NOT FOUND =>", field);
-          //   continue;
-          // }
+          if (!circleSelected) {
+            console.log("❌ CIRCLE NOT FOUND =>", circle_name);
 
-if (!selected) {
-  console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
-
-  // ================= FULL CLEAR =================
-  await page.evaluate(() => {
-    const allSelects = document.querySelectorAll(".ant-select");
-
-    const select = allSelects[5];
-
-    if (!select) return;
-
-    // clear selected tag/value
-    const clearBtn = select.querySelector(".ant-select-clear");
-
-    if (clearBtn) {
-      clearBtn.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true })
-      );
-
-      clearBtn.click();
-    }
-
-    // clear hidden input
-    const input = select.querySelector("input");
-
-    if (input) {
-      input.value = "";
-
-      input.dispatchEvent(
-        new Event("input", { bubbles: true })
-      );
-
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Backspace",
-          bubbles: true,
-        })
-      );
-    }
-  });
-
-  // close dropdown
-  await page.keyboard.press("Escape");
-
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // ================= APPLY =================
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find(
-      (b) => b.innerText.trim() === "Apply"
-    );
-
-    if (btn) btn.click();
-  });
-
-  // ================= WAIT RESULT =================
-  await page.waitForFunction(
-    () => {
-      const el = document.querySelector(".table-pagination p span");
-
-      if (!el) return false;
-
-      return /^[0-9,]+$/.test(el.innerText.trim());
-    },
-    {
-      timeout: 120000,
-      polling: 500,
-    }
-  );
-
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // ================= GET RESULT =================
-  let totalResult = "0";
-
-  try {
-    totalResult = await page.$eval(
-      ".table-pagination p span",
-      (el) => el.innerText.trim()
-    );
-
-    if (!/^[0-9,]+$/.test(totalResult)) {
-      totalResult = "0";
-    }
-  } catch (err) {
-    totalResult = "0";
-  }
-
-  // ================= SAVE RESULT =================
-  stationResult.fields[field] = totalResult;
-
-  console.log(
-    "Circle =>",
-    circle_name,
-    "| Station =>",
-    stationName,
-    "| Field =>",
-    field,
-    "| EMPTY FILTER RESULT =>",
-    totalResult
-  );
-
-  continue;
-}
-
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-
-          await page.evaluate(() => {
-            const btn = [...document.querySelectorAll("button")].find(
-              (b) => b.innerText.trim() === "Apply",
-            );
-
-            if (btn) btn.click();
-          });
-
-          // ================= WAIT FOR RESULT =================
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          await page.waitForFunction(
-            () => {
-              const el = document.querySelector(".table-pagination p span");
-
-              if (!el) return false;
-
-              const text = el.innerText.trim();
-
-              // must contain valid number
-              return /^[0-9,]+$/.test(text);
-            },
-            {
-              timeout: 120000,
-              polling: 500,
-            },
-          );
-
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= GET RESULT =================
-          // ================= GET RESULT =================
-
-          let totalResult = "0";
-
-          try {
-            totalResult = await page.$eval(".table-pagination p span", (el) =>
-              el.innerText.trim(),
-            );
-
-            if (!/^[0-9,]+$/.test(totalResult)) {
-              totalResult = "0";
-            }
-          } catch (err) {
-            totalResult = "0";
+            continue;
           }
 
-          // save field result
-          stationResult.fields[field] = totalResult;
+          await new Promise((resolve) => setTimeout(resolve, 2000));
 
-          console.log(
-            "Circle =>",
-            circle_name,
-            "| Station =>",
-            stationName,
-            "| Field =>",
-            field,
-            "| Result =>",
-            totalResult,
-          );
-        }
-// =====================================================
-// ================= FINAL RESULT ======================
-// =====================================================
+          // =====================================================
+          // ================= STATION LOOP =======================
+          // =====================================================
 
-          finalResults.push(stationResult);
+          for (const stationName of stations) {
+            try {
+              // ================= CLEAR OLD STATION =================
 
+              await page.evaluate(() => {
+                const allSelects = document.querySelectorAll(".ant-select");
 
-          console.log("✅ Station Completed =>", stationName);
-        } catch (stationError) {
-          console.log("❌ STATION ERROR =>", stationName, stationError.message);
+                const select = allSelects[1];
+
+                if (!select) return;
+
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) {
+                  clearBtn.click();
+                }
+              });
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+
+              // ================= SELECT STATION =================
+
+              await page.click("#rc_select_1", {
+                clickCount: 3,
+              });
+
+              await page.keyboard.press("Backspace");
+
+              await page.type("#rc_select_1", stationName);
+
+              await page.waitForFunction(() => {
+                return (
+                  document.querySelectorAll(".ant-select-item-option").length >
+                  0
+                );
+              });
+
+              const stationSelected = await page.evaluate((station) => {
+                const normalize = (str) =>
+                  str.toLowerCase().replace(/\s+/g, " ").trim();
+
+                const target = normalize(station);
+
+                const items = document.querySelectorAll(
+                  ".ant-select-item-option",
+                );
+
+                for (const el of items) {
+                  const text = normalize(el.innerText);
+
+                  if (text === target) {
+                    el.click();
+
+                    return true;
+                  }
+                }
+
+                return false;
+              }, stationName);
+
+              if (!stationSelected) {
+                console.log("❌ STATION NOT FOUND =>", stationName);
+
+                continue;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // =====================================================
+              // ================= APPLY FILTER =======================
+              // =====================================================
+
+              const oldValue = await page
+                .$eval(".table-pagination p span", (el) => el.innerText.trim())
+                .catch(() => "0");
+
+              await page.evaluate(() => {
+                const btn = [...document.querySelectorAll("button")].find(
+                  (b) => b.innerText.trim() === "Apply",
+                );
+
+                if (btn) btn.click();
+              });
+
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+              // =====================================================
+              // ================= WAIT + RETRY RESULT ================
+              // =====================================================
+
+              let totalResult = "0";
+
+              let retryCount = 0;
+
+              const maxRetry = 5;
+
+              while (retryCount < maxRetry) {
+                try {
+                  // ================= WAIT RESULT =================
+
+                  await page.waitForFunction(
+                    () => {
+                      const el = document.querySelector(
+                        ".table-pagination p span",
+                      );
+
+                      if (!el) return false;
+
+                      const text = el.innerText.trim();
+
+                      return /^[0-9,]+$/.test(text);
+                    },
+                    {
+                      timeout: 30000,
+                      polling: 500,
+                    },
+                  );
+
+                  // ================= EXTRA WAIT =================
+
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+                  // ================= GET RESULT =================
+
+                  totalResult = await page.$eval(
+                    ".table-pagination p span",
+                    (el) => el.innerText.trim(),
+                  );
+
+                  // ================= VALIDATE =================
+
+                  if (/^[0-9,]+$/.test(totalResult)) {
+                    console.log(
+                      `✅ RESULT FOUND => ${totalResult} | Retry => ${retryCount}`,
+                    );
+
+                    break;
+                  }
+                } catch (err) {
+                  console.log(
+                    `⚠️ RESULT NOT FOUND | Retry => ${retryCount + 1}`,
+                  );
+                }
+
+                // ================= RETRY APPLY =================
+
+                retryCount++;
+
+                await page.evaluate(() => {
+                  const btn = [...document.querySelectorAll("button")].find(
+                    (b) => b.innerText.trim() === "Apply",
+                  );
+
+                  if (btn) btn.click();
+                });
+
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+              }
+
+              // ================= FINAL FALLBACK =================
+
+              if (!/^[0-9,]+$/.test(totalResult)) {
+                totalResult = "0";
+
+                console.log("❌ FINAL RESULT FAILED => USING 0");
+              }
+
+              // =====================================================
+              // ================= FIND EXISTING OBJECT ===============
+              // =====================================================
+
+              let stationResult = finalResults.find(
+                (item) =>
+                  item.circle_name === circle_name &&
+                  item.station_name === stationName,
+              );
+
+              // ================= CREATE IF NOT EXISTS =================
+
+              if (!stationResult) {
+                stationResult = {
+                  circle_name,
+                  station_name: stationName,
+                  fields: {},
+                };
+
+                finalResults.push(stationResult);
+              }
+
+              // ================= SAVE FIELD RESULT =================
+
+              stationResult.fields[field] = totalResult;
+
+              // ================= LOG RESULT =================
+
+              console.log(
+                "Circle =>",
+                circle_name,
+                "| Station =>",
+                stationName,
+                "| Field =>",
+                field,
+                "| Result =>",
+                totalResult,
+              );
+            } catch (stationError) {
+              console.log(
+                "❌ STATION ERROR =>",
+                stationName,
+                stationError.message,
+              );
+            }
+          }
+        } catch (circleError) {
+          console.log("❌ CIRCLE ERROR =>", circle_name, circleError.message);
         }
       }
     }
@@ -426,7 +372,7 @@ if (!selected) {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
 // ======================================================
@@ -475,8 +421,10 @@ const yakshPuppeteertesting = async () => {
       waitUntil: "domcontentloaded",
     });
 
+    const jsondata = await yakshCriminalRecordMyJurisdictionHeaders(page);
 
-    await yakshCriminalRecordMyJurisdiction(page);
+    await exportStationFieldsToExcel(jsondata);
+
     console.log("✅ ALL TASK COMPLETED");
   } catch (error) {
     console.error("❌ ERROR =>", error);
@@ -489,8 +437,3 @@ const yakshPuppeteertesting = async () => {
 };
 
 yakshPuppeteertesting();
-
-
-
-
-
