@@ -1,12 +1,19 @@
 require("dotenv").config();
-const {circle_station}=require("./data/stationData")
-const{recordFields_info,recordFields_Juridiction,recordFields_Juridiction_dcrb,recordFields_myJurisdiction_header}=require("./data/fieldNames");
-const {groupCircleStations,getCircleNames}=require("./utils/groupCircleStation");
-const {mergeArrayData}=require("./utils/mergeArrayData");
-const {exportStationFieldsToExcel}=require("./utils/excelCreate");
+const { circle_station } = require("./data/stationData");
+const {
+  recordFields_info,
+  recordFields_Juridiction,
+  recordFields_Juridiction_dcrb,
+  recordFields_myJurisdiction_header,
+  recordFields_Beat,
+} = require("./data/fieldNames");
+const {
+  groupCircleStations,
+  getCircleNames,
+} = require("./utils/groupCircleStation");
+const { mergeArrayData } = require("./utils/mergeArrayData");
+const { exportStationFieldsToExcel } = require("./utils/excelCreate");
 const puppeteer = require("puppeteer");
-
-
 
 const yakshMissingRecordInfoPage = async (page) => {
   await page.goto("https://yaksh.ai/panel/missing-record-information", {
@@ -15,11 +22,8 @@ const yakshMissingRecordInfoPage = async (page) => {
 
   await page.waitForSelector("#rc_select_0");
 
-
   try {
-    
-   // ================= GROUP DATA =================
-
+    // ================= GROUP DATA =================
 
     const grouped = await groupCircleStations(circle_station);
 
@@ -28,14 +32,11 @@ const yakshMissingRecordInfoPage = async (page) => {
 
     for (const circle_name of Object.keys(grouped)) {
       const stations = grouped[circle_name];
-     
+
       // ================= SELECT CIRCLE =================
 
       await page.click("#rc_select_0");
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", ""),
-      );
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
 
       await page.waitForSelector(".ant-select-item-option");
 
@@ -53,29 +54,26 @@ const yakshMissingRecordInfoPage = async (page) => {
 
       // ================= STATION LOOP =================
 
-
       for (const stationName of stations) {
+        // ================= CLEAR OLD STATION =================
+        // this part is important because when we select new station, old station value is not cleared properly which causes wrong results or no results. so we need to clear old station value before selecting new station.
+        await page.evaluate(() => {
+          const allSelects = document.querySelectorAll(".ant-select");
 
-          // ================= CLEAR OLD STATION =================
-          // this part is important because when we select new station, old station value is not cleared properly which causes wrong results or no results. so we need to clear old station value before selecting new station.
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
+          const select = allSelects[1];
 
-            const select = allSelects[1];
+          if (!select) return;
 
-            if (!select) return;
+          const clearBtn = select.querySelector(".ant-select-clear");
 
-            const clearBtn = select.querySelector(".ant-select-clear");
+          if (clearBtn) {
+            clearBtn.click();
+          }
+        });
 
-            if (clearBtn) {
-              clearBtn.click();
-            }
-          });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= SELECT STATION =================
-
+        // ================= SELECT STATION =================
 
         await page.click("#rc_select_1");
         await page.type("#rc_select_1", stationName);
@@ -109,9 +107,9 @@ const yakshMissingRecordInfoPage = async (page) => {
           fields: {},
         };
 
-   // =====================================================
-// ================= STATUS LOOP =======================
-// =====================================================
+        // =====================================================
+        // ================= STATUS LOOP =======================
+        // =====================================================
         for (const field of recordFields_info) {
           // ================= CLEAR OLD FIELD =================
           await page.evaluate(() => {
@@ -206,113 +204,109 @@ const yakshMissingRecordInfoPage = async (page) => {
           // }
 
           if (!selected) {
-  console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
+            console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
 
-  // ================= FULL CLEAR =================
-  await page.evaluate(() => {
-    const allSelects = document.querySelectorAll(".ant-select");
+            // ================= FULL CLEAR =================
+            await page.evaluate(() => {
+              const allSelects = document.querySelectorAll(".ant-select");
 
-    const select = allSelects[5];
+              const select = allSelects[5];
 
-    if (!select) return;
+              if (!select) return;
 
-    // clear selected tag/value
-    const clearBtn = select.querySelector(".ant-select-clear");
+              // clear selected tag/value
+              const clearBtn = select.querySelector(".ant-select-clear");
 
-    if (clearBtn) {
-      clearBtn.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true })
-      );
+              if (clearBtn) {
+                clearBtn.dispatchEvent(
+                  new MouseEvent("mousedown", { bubbles: true }),
+                );
 
-      clearBtn.click();
-    }
+                clearBtn.click();
+              }
 
-    // clear hidden input
-    const input = select.querySelector("input");
+              // clear hidden input
+              const input = select.querySelector("input");
 
-    if (input) {
-      input.value = "";
+              if (input) {
+                input.value = "";
 
-      input.dispatchEvent(
-        new Event("input", { bubbles: true })
-      );
+                input.dispatchEvent(new Event("input", { bubbles: true }));
 
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Backspace",
-          bubbles: true,
-        })
-      );
-    }
-  });
+                input.dispatchEvent(
+                  new KeyboardEvent("keydown", {
+                    key: "Backspace",
+                    bubbles: true,
+                  }),
+                );
+              }
+            });
 
-  // close dropdown
-  await page.keyboard.press("Escape");
+            // close dropdown
+            await page.keyboard.press("Escape");
 
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // ================= APPLY =================
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find(
-      (b) => b.innerText.trim() === "Apply"
-    );
+            // ================= APPLY =================
+            await page.evaluate(() => {
+              const btn = [...document.querySelectorAll("button")].find(
+                (b) => b.innerText.trim() === "Apply",
+              );
 
-    if (btn) btn.click();
-  });
+              if (btn) btn.click();
+            });
 
-  // ================= WAIT RESULT =================
-  await page.waitForFunction(
-    () => {
-      const el = document.querySelector(".table-pagination p span");
+            // ================= WAIT RESULT =================
+            await page.waitForFunction(
+              () => {
+                const el = document.querySelector(".table-pagination p span");
 
-      if (!el) return false;
+                if (!el) return false;
 
-      return /^[0-9,]+$/.test(el.innerText.trim());
-    },
-    {
-      timeout: 120000,
-      polling: 500,
-    }
-  );
+                return /^[0-9,]+$/.test(el.innerText.trim());
+              },
+              {
+                timeout: 120000,
+                polling: 500,
+              },
+            );
 
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
 
-  // ================= GET RESULT =================
-  let totalResult = "0";
+            // ================= GET RESULT =================
+            let totalResult = "0";
 
-  try {
-    totalResult = await page.$eval(
-      ".table-pagination p span",
-      (el) => el.innerText.trim()
-    );
+            try {
+              totalResult = await page.$eval(".table-pagination p span", (el) =>
+                el.innerText.trim(),
+              );
 
-    if (!/^[0-9,]+$/.test(totalResult)) {
-      totalResult = "0";
-    }
-  } catch (err) {
-    totalResult = "0";
-  }
+              if (!/^[0-9,]+$/.test(totalResult)) {
+                totalResult = "0";
+              }
+            } catch (err) {
+              totalResult = "0";
+            }
 
-  // ================= SAVE RESULT =================
-  stationResult.fields[field] = totalResult;
+            // ================= SAVE RESULT =================
+            stationResult.fields[field] = totalResult;
 
-  console.log(
-    "Circle =>",
-    circle_name,
-    "| Station =>",
-    stationName,
-    "| Field =>",
-    field,
-    "| EMPTY FILTER RESULT =>",
-    totalResult
-  );
+            console.log(
+              "Circle =>",
+              circle_name,
+              "| Station =>",
+              stationName,
+              "| Field =>",
+              field,
+              "| EMPTY FILTER RESULT =>",
+              totalResult,
+            );
 
-  continue;
-}
+            continue;
+          }
 
           //=========================================================
           await new Promise((resolve) => setTimeout(resolve, 1500));
-
 
           await page.evaluate(() => {
             const btn = [...document.querySelectorAll("button")].find(
@@ -342,12 +336,12 @@ const yakshMissingRecordInfoPage = async (page) => {
             },
           );
 
-         await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
           // ================= GET RESULT =================
           // ================= GET RESULT =================
 
-          let totalResult ;
+          let totalResult;
 
           try {
             totalResult = await page.$eval(".table-pagination p span", (el) =>
@@ -366,7 +360,7 @@ const yakshMissingRecordInfoPage = async (page) => {
 
           console.log(
             "Circle =>",
-             circle_name,
+            circle_name,
             "| Station =>",
             stationName,
             "| Field =>",
@@ -376,9 +370,9 @@ const yakshMissingRecordInfoPage = async (page) => {
           );
         }
 
-// =====================================================
-// ================= FINAL RESULT ======================
-// =====================================================
+        // =====================================================
+        // ================= FINAL RESULT ======================
+        // =====================================================
 
         // push complete station data
         finalResults.push(stationResult);
@@ -398,14 +392,10 @@ const yakshMissingRecordInfoPage = async (page) => {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
 const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
- 
-
- 
-  
   //============ GO TO PAGE =============================
 
   await page.goto(
@@ -427,14 +417,10 @@ const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
   // wait page load
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
-
   try {
-  
-  // ================= GROUP DATA =================
-
+    // ================= GROUP DATA =================
 
     const grouped = await groupCircleStations(circle_station);
-
 
     // ================= FINAL RESULT ARRAY =================
 
@@ -449,10 +435,7 @@ const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
 
       await page.click("#rc_select_0");
 
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", ""),
-      );
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
 
       await page.waitForSelector(".ant-select-item-option");
 
@@ -521,284 +504,282 @@ const yakshCriminalRecordMyJurisdictionDcrb = async (page) => {
 
           await new Promise((resolve) => setTimeout(resolve, 1500));
 
+          // ================= STATION RESULT OBJECT =================
+          const stationResult = {
+            circle_name: circle_name,
+            station_name: stationName,
+            fields: {},
+          };
 
-        // ================= STATION RESULT OBJECT =================
-        const stationResult = {
-          circle_name: circle_name,
-          station_name: stationName,
-          fields: {},
-        };
+          // =====================================================
+          // ================= STATUS LOOP =======================
+          // =====================================================
+          for (const field of recordFields_Juridiction_dcrb) {
+            // ================= CLEAR OLD FIELD =================
+            await page.evaluate(() => {
+              const allSelects = document.querySelectorAll(".ant-select");
 
-// =====================================================
-// ================= STATUS LOOP =======================
-// =====================================================
-  for (const field of recordFields_Juridiction_dcrb) {
-          // ================= CLEAR OLD FIELD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
+              // third select = Select Record
+              const select = allSelects[5];
 
-            // third select = Select Record
-            const select = allSelects[5];
+              if (!select) return;
 
-            if (!select) return;
+              const clearBtn = select.querySelector(".ant-select-clear");
 
-            const clearBtn = select.querySelector(".ant-select-clear");
+              if (clearBtn) {
+                clearBtn.dispatchEvent(
+                  new MouseEvent("mousedown", { bubbles: true }),
+                );
 
-            if (clearBtn) {
-              clearBtn.dispatchEvent(
-                new MouseEvent("mousedown", { bubbles: true }),
+                clearBtn.click();
+              }
+            });
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // ================= OPEN SELECT RECORD =================
+            await page.evaluate(() => {
+              const allSelects = document.querySelectorAll(".ant-select");
+
+              const select = allSelects[5];
+
+              if (!select) return;
+
+              const selector = select.querySelector(".ant-select-selector");
+
+              if (selector) selector.click();
+            });
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // ================= TYPE FIELD =================
+            const inputs = await page.$$(".ant-select-selection-search-input");
+
+            const input = inputs[5];
+
+            if (!input) {
+              console.log("INPUT NOT FOUND");
+              continue;
+            }
+
+            await input.click({ clickCount: 3 });
+
+            await page.keyboard.press("Backspace");
+
+            await input.type(field, {
+              delay: 70,
+            });
+
+            // ================= WAIT OPTIONS =================
+            await page.waitForFunction(() => {
+              return (
+                document.querySelectorAll(".ant-select-item-option").length > 0
+              );
+            });
+
+            // ================= SELECT EXACT OPTION =================
+            const selected = await page.evaluate((fieldName) => {
+              const normalize = (str) =>
+                str
+                  .toLowerCase()
+                  .replace(/[^a-z0-9 ]/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+
+              const target = normalize(fieldName);
+
+              const items = document.querySelectorAll(
+                ".ant-select-item-option",
               );
 
-              clearBtn.click();
-            }
-          });
+              for (const el of items) {
+                const text = normalize(el.innerText);
 
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= OPEN SELECT RECORD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            const select = allSelects[5];
-
-            if (!select) return;
-
-            const selector = select.querySelector(".ant-select-selector");
-
-            if (selector) selector.click();
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= TYPE FIELD =================
-          const inputs = await page.$$(".ant-select-selection-search-input");
-
-          const input = inputs[5];
-
-          if (!input) {
-            console.log("INPUT NOT FOUND");
-            continue;
-          }
-
-          await input.click({ clickCount: 3 });
-
-          await page.keyboard.press("Backspace");
-
-          await input.type(field, {
-            delay: 70,
-          });
-
-          // ================= WAIT OPTIONS =================
-          await page.waitForFunction(() => {
-            return (
-              document.querySelectorAll(".ant-select-item-option").length > 0
-            );
-          });
-
-          // ================= SELECT EXACT OPTION =================
-          const selected = await page.evaluate((fieldName) => {
-            const normalize = (str) =>
-              str
-                .toLowerCase()
-                .replace(/[^a-z0-9 ]/g, "")
-                .replace(/\s+/g, " ")
-                .trim();
-
-            const target = normalize(fieldName);
-
-            const items = document.querySelectorAll(".ant-select-item-option");
-
-            for (const el of items) {
-              const text = normalize(el.innerText);
-
-              if (text === target) {
-                el.click();
-                return true;
+                if (text === target) {
+                  el.click();
+                  return true;
+                }
               }
+
+              return false;
+            }, field);
+
+            // if (!selected) {
+            //   console.log("NOT FOUND =>", field);
+            //   continue;
+            // }
+
+            if (!selected) {
+              console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
+
+              // ================= FULL CLEAR =================
+              await page.evaluate(() => {
+                const allSelects = document.querySelectorAll(".ant-select");
+
+                const select = allSelects[5];
+
+                if (!select) return;
+
+                // clear selected tag/value
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) {
+                  clearBtn.dispatchEvent(
+                    new MouseEvent("mousedown", { bubbles: true }),
+                  );
+
+                  clearBtn.click();
+                }
+
+                // clear hidden input
+                const input = select.querySelector("input");
+
+                if (input) {
+                  input.value = "";
+
+                  input.dispatchEvent(new Event("input", { bubbles: true }));
+
+                  input.dispatchEvent(
+                    new KeyboardEvent("keydown", {
+                      key: "Backspace",
+                      bubbles: true,
+                    }),
+                  );
+                }
+              });
+
+              // close dropdown
+              await page.keyboard.press("Escape");
+
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // ================= APPLY =================
+              await page.evaluate(() => {
+                const btn = [...document.querySelectorAll("button")].find(
+                  (b) => b.innerText.trim() === "Apply",
+                );
+
+                if (btn) btn.click();
+              });
+
+              // ================= WAIT RESULT =================
+              await page.waitForFunction(
+                () => {
+                  const el = document.querySelector(".table-pagination p span");
+
+                  if (!el) return false;
+
+                  return /^[0-9,]+$/.test(el.innerText.trim());
+                },
+                {
+                  timeout: 120000,
+                  polling: 500,
+                },
+              );
+
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+
+              // ================= GET RESULT =================
+              let totalResult = "0";
+
+              try {
+                totalResult = await page.$eval(
+                  ".table-pagination p span",
+                  (el) => el.innerText.trim(),
+                );
+
+                if (!/^[0-9,]+$/.test(totalResult)) {
+                  totalResult = "0";
+                }
+              } catch (err) {
+                totalResult = "0";
+              }
+
+              // ================= SAVE RESULT =================
+              stationResult.fields[field] = totalResult;
+
+              console.log(
+                "Circle =>",
+                circle_name,
+                "| Station =>",
+                stationName,
+                "| Field =>",
+                field,
+                "| EMPTY FILTER RESULT =>",
+                totalResult,
+              );
+
+              continue;
             }
 
-            return false;
-          }, field);
+            await new Promise((resolve) => setTimeout(resolve, 1500));
 
-          // if (!selected) {
-          //   console.log("NOT FOUND =>", field);
-          //   continue;
-          // }
+            await page.evaluate(() => {
+              const btn = [...document.querySelectorAll("button")].find(
+                (b) => b.innerText.trim() === "Apply",
+              );
 
-if (!selected) {
-  console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
+              if (btn) btn.click();
+            });
 
-  // ================= FULL CLEAR =================
-  await page.evaluate(() => {
-    const allSelects = document.querySelectorAll(".ant-select");
+            // ================= WAIT FOR RESULT =================
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const select = allSelects[5];
+            await page.waitForFunction(
+              () => {
+                const el = document.querySelector(".table-pagination p span");
 
-    if (!select) return;
+                if (!el) return false;
 
-    // clear selected tag/value
-    const clearBtn = select.querySelector(".ant-select-clear");
+                const text = el.innerText.trim();
 
-    if (clearBtn) {
-      clearBtn.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true })
-      );
-
-      clearBtn.click();
-    }
-
-    // clear hidden input
-    const input = select.querySelector("input");
-
-    if (input) {
-      input.value = "";
-
-      input.dispatchEvent(
-        new Event("input", { bubbles: true })
-      );
-
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Backspace",
-          bubbles: true,
-        })
-      );
-    }
-  });
-
-  // close dropdown
-  await page.keyboard.press("Escape");
-
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // ================= APPLY =================
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find(
-      (b) => b.innerText.trim() === "Apply"
-    );
-
-    if (btn) btn.click();
-  });
-
-  // ================= WAIT RESULT =================
-  await page.waitForFunction(
-    () => {
-      const el = document.querySelector(".table-pagination p span");
-
-      if (!el) return false;
-
-      return /^[0-9,]+$/.test(el.innerText.trim());
-    },
-    {
-      timeout: 120000,
-      polling: 500,
-    }
-  );
-
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // ================= GET RESULT =================
-  let totalResult = "0";
-
-  try {
-    totalResult = await page.$eval(
-      ".table-pagination p span",
-      (el) => el.innerText.trim()
-    );
-
-    if (!/^[0-9,]+$/.test(totalResult)) {
-      totalResult = "0";
-    }
-  } catch (err) {
-    totalResult = "0";
-  }
-
-  // ================= SAVE RESULT =================
-  stationResult.fields[field] = totalResult;
-
-  console.log(
-    "Circle =>",
-    circle_name,
-    "| Station =>",
-    stationName,
-    "| Field =>",
-    field,
-    "| EMPTY FILTER RESULT =>",
-    totalResult
-  );
-
-  continue;
-}
-
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-
-          await page.evaluate(() => {
-            const btn = [...document.querySelectorAll("button")].find(
-              (b) => b.innerText.trim() === "Apply",
+                // must contain valid number
+                return /^[0-9,]+$/.test(text);
+              },
+              {
+                timeout: 120000,
+                polling: 500,
+              },
             );
 
-            if (btn) btn.click();
-          });
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // ================= WAIT FOR RESULT =================
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+            // ================= GET RESULT =================
+            // ================= GET RESULT =================
 
-          await page.waitForFunction(
-            () => {
-              const el = document.querySelector(".table-pagination p span");
+            let totalResult = "0";
 
-              if (!el) return false;
+            try {
+              totalResult = await page.$eval(".table-pagination p span", (el) =>
+                el.innerText.trim(),
+              );
 
-              const text = el.innerText.trim();
-
-              // must contain valid number
-              return /^[0-9,]+$/.test(text);
-            },
-            {
-              timeout: 120000,
-              polling: 500,
-            },
-          );
-
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= GET RESULT =================
-          // ================= GET RESULT =================
-
-          let totalResult = "0";
-
-          try {
-            totalResult = await page.$eval(".table-pagination p span", (el) =>
-              el.innerText.trim(),
-            );
-
-            if (!/^[0-9,]+$/.test(totalResult)) {
+              if (!/^[0-9,]+$/.test(totalResult)) {
+                totalResult = "0";
+              }
+            } catch (err) {
               totalResult = "0";
             }
-          } catch (err) {
-            totalResult = "0";
+
+            // save field result
+            stationResult.fields[field] = totalResult;
+
+            console.log(
+              "Circle =>",
+              circle_name,
+              "| Station =>",
+              stationName,
+              "| Field =>",
+              field,
+              "| Result =>",
+              totalResult,
+            );
           }
-
-          // save field result
-          stationResult.fields[field] = totalResult;
-
-          console.log(
-            "Circle =>",
-            circle_name,
-            "| Station =>",
-            stationName,
-            "| Field =>",
-            field,
-            "| Result =>",
-            totalResult,
-          );
-        }
-// =====================================================
-// ================= FINAL RESULT ======================
-// =====================================================
+          // =====================================================
+          // ================= FINAL RESULT ======================
+          // =====================================================
 
           finalResults.push(stationResult);
-
 
           console.log("✅ Station Completed =>", stationName);
         } catch (stationError) {
@@ -818,15 +799,10 @@ if (!selected) {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
-
 const yakshCriminalRecordMyJurisdiction = async (page) => {
- 
-
- 
-  
   //============ GO TO PAGE =============================
 
   await page.goto(
@@ -848,14 +824,10 @@ const yakshCriminalRecordMyJurisdiction = async (page) => {
   // wait page load
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
-
   try {
-  
-  // ================= GROUP DATA =================
-
+    // ================= GROUP DATA =================
 
     const grouped = await groupCircleStations(circle_station);
-
 
     // ================= FINAL RESULT ARRAY =================
 
@@ -870,10 +842,7 @@ const yakshCriminalRecordMyJurisdiction = async (page) => {
 
       await page.click("#rc_select_0");
 
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", ""),
-      );
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
 
       await page.waitForSelector(".ant-select-item-option");
 
@@ -942,284 +911,282 @@ const yakshCriminalRecordMyJurisdiction = async (page) => {
 
           await new Promise((resolve) => setTimeout(resolve, 1500));
 
+          // ================= STATION RESULT OBJECT =================
+          const stationResult = {
+            circle_name: circle_name,
+            station_name: stationName,
+            fields: {},
+          };
 
-        // ================= STATION RESULT OBJECT =================
-        const stationResult = {
-          circle_name: circle_name,
-          station_name: stationName,
-          fields: {},
-        };
+          // =====================================================
+          // ================= STATUS LOOP =======================
+          // =====================================================
+          for (const field of recordFields_Juridiction) {
+            // ================= CLEAR OLD FIELD =================
+            await page.evaluate(() => {
+              const allSelects = document.querySelectorAll(".ant-select");
 
-// =====================================================
-// ================= STATUS LOOP =======================
-// =====================================================
-  for (const field of recordFields_Juridiction) {
-          // ================= CLEAR OLD FIELD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
+              // third select = Select Record
+              const select = allSelects[5];
 
-            // third select = Select Record
-            const select = allSelects[5];
+              if (!select) return;
 
-            if (!select) return;
+              const clearBtn = select.querySelector(".ant-select-clear");
 
-            const clearBtn = select.querySelector(".ant-select-clear");
+              if (clearBtn) {
+                clearBtn.dispatchEvent(
+                  new MouseEvent("mousedown", { bubbles: true }),
+                );
 
-            if (clearBtn) {
-              clearBtn.dispatchEvent(
-                new MouseEvent("mousedown", { bubbles: true }),
+                clearBtn.click();
+              }
+            });
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // ================= OPEN SELECT RECORD =================
+            await page.evaluate(() => {
+              const allSelects = document.querySelectorAll(".ant-select");
+
+              const select = allSelects[5];
+
+              if (!select) return;
+
+              const selector = select.querySelector(".ant-select-selector");
+
+              if (selector) selector.click();
+            });
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // ================= TYPE FIELD =================
+            const inputs = await page.$$(".ant-select-selection-search-input");
+
+            const input = inputs[5];
+
+            if (!input) {
+              console.log("INPUT NOT FOUND");
+              continue;
+            }
+
+            await input.click({ clickCount: 3 });
+
+            await page.keyboard.press("Backspace");
+
+            await input.type(field, {
+              delay: 70,
+            });
+
+            // ================= WAIT OPTIONS =================
+            await page.waitForFunction(() => {
+              return (
+                document.querySelectorAll(".ant-select-item-option").length > 0
+              );
+            });
+
+            // ================= SELECT EXACT OPTION =================
+            const selected = await page.evaluate((fieldName) => {
+              const normalize = (str) =>
+                str
+                  .toLowerCase()
+                  .replace(/[^a-z0-9 ]/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+
+              const target = normalize(fieldName);
+
+              const items = document.querySelectorAll(
+                ".ant-select-item-option",
               );
 
-              clearBtn.click();
-            }
-          });
+              for (const el of items) {
+                const text = normalize(el.innerText);
 
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= OPEN SELECT RECORD =================
-          await page.evaluate(() => {
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            const select = allSelects[5];
-
-            if (!select) return;
-
-            const selector = select.querySelector(".ant-select-selector");
-
-            if (selector) selector.click();
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= TYPE FIELD =================
-          const inputs = await page.$$(".ant-select-selection-search-input");
-
-          const input = inputs[5];
-
-          if (!input) {
-            console.log("INPUT NOT FOUND");
-            continue;
-          }
-
-          await input.click({ clickCount: 3 });
-
-          await page.keyboard.press("Backspace");
-
-          await input.type(field, {
-            delay: 70,
-          });
-
-          // ================= WAIT OPTIONS =================
-          await page.waitForFunction(() => {
-            return (
-              document.querySelectorAll(".ant-select-item-option").length > 0
-            );
-          });
-
-          // ================= SELECT EXACT OPTION =================
-          const selected = await page.evaluate((fieldName) => {
-            const normalize = (str) =>
-              str
-                .toLowerCase()
-                .replace(/[^a-z0-9 ]/g, "")
-                .replace(/\s+/g, " ")
-                .trim();
-
-            const target = normalize(fieldName);
-
-            const items = document.querySelectorAll(".ant-select-item-option");
-
-            for (const el of items) {
-              const text = normalize(el.innerText);
-
-              if (text === target) {
-                el.click();
-                return true;
+                if (text === target) {
+                  el.click();
+                  return true;
+                }
               }
+
+              return false;
+            }, field);
+
+            // if (!selected) {
+            //   console.log("NOT FOUND =>", field);
+            //   continue;
+            // }
+
+            if (!selected) {
+              console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
+
+              // ================= FULL CLEAR =================
+              await page.evaluate(() => {
+                const allSelects = document.querySelectorAll(".ant-select");
+
+                const select = allSelects[5];
+
+                if (!select) return;
+
+                // clear selected tag/value
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) {
+                  clearBtn.dispatchEvent(
+                    new MouseEvent("mousedown", { bubbles: true }),
+                  );
+
+                  clearBtn.click();
+                }
+
+                // clear hidden input
+                const input = select.querySelector("input");
+
+                if (input) {
+                  input.value = "";
+
+                  input.dispatchEvent(new Event("input", { bubbles: true }));
+
+                  input.dispatchEvent(
+                    new KeyboardEvent("keydown", {
+                      key: "Backspace",
+                      bubbles: true,
+                    }),
+                  );
+                }
+              });
+
+              // close dropdown
+              await page.keyboard.press("Escape");
+
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // ================= APPLY =================
+              await page.evaluate(() => {
+                const btn = [...document.querySelectorAll("button")].find(
+                  (b) => b.innerText.trim() === "Apply",
+                );
+
+                if (btn) btn.click();
+              });
+
+              // ================= WAIT RESULT =================
+              await page.waitForFunction(
+                () => {
+                  const el = document.querySelector(".table-pagination p span");
+
+                  if (!el) return false;
+
+                  return /^[0-9,]+$/.test(el.innerText.trim());
+                },
+                {
+                  timeout: 120000,
+                  polling: 500,
+                },
+              );
+
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+
+              // ================= GET RESULT =================
+              let totalResult = "0";
+
+              try {
+                totalResult = await page.$eval(
+                  ".table-pagination p span",
+                  (el) => el.innerText.trim(),
+                );
+
+                if (!/^[0-9,]+$/.test(totalResult)) {
+                  totalResult = "0";
+                }
+              } catch (err) {
+                totalResult = "0";
+              }
+
+              // ================= SAVE RESULT =================
+              stationResult.fields[field] = totalResult;
+
+              console.log(
+                "Circle =>",
+                circle_name,
+                "| Station =>",
+                stationName,
+                "| Field =>",
+                field,
+                "| EMPTY FILTER RESULT =>",
+                totalResult,
+              );
+
+              continue;
             }
 
-            return false;
-          }, field);
+            await new Promise((resolve) => setTimeout(resolve, 1500));
 
-          // if (!selected) {
-          //   console.log("NOT FOUND =>", field);
-          //   continue;
-          // }
+            await page.evaluate(() => {
+              const btn = [...document.querySelectorAll("button")].find(
+                (b) => b.innerText.trim() === "Apply",
+              );
 
-if (!selected) {
-  console.log("NOT FOUND =>", field, "| APPLY EMPTY SELECTION");
+              if (btn) btn.click();
+            });
 
-  // ================= FULL CLEAR =================
-  await page.evaluate(() => {
-    const allSelects = document.querySelectorAll(".ant-select");
+            // ================= WAIT FOR RESULT =================
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const select = allSelects[5];
+            await page.waitForFunction(
+              () => {
+                const el = document.querySelector(".table-pagination p span");
 
-    if (!select) return;
+                if (!el) return false;
 
-    // clear selected tag/value
-    const clearBtn = select.querySelector(".ant-select-clear");
+                const text = el.innerText.trim();
 
-    if (clearBtn) {
-      clearBtn.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true })
-      );
-
-      clearBtn.click();
-    }
-
-    // clear hidden input
-    const input = select.querySelector("input");
-
-    if (input) {
-      input.value = "";
-
-      input.dispatchEvent(
-        new Event("input", { bubbles: true })
-      );
-
-      input.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Backspace",
-          bubbles: true,
-        })
-      );
-    }
-  });
-
-  // close dropdown
-  await page.keyboard.press("Escape");
-
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // ================= APPLY =================
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll("button")].find(
-      (b) => b.innerText.trim() === "Apply"
-    );
-
-    if (btn) btn.click();
-  });
-
-  // ================= WAIT RESULT =================
-  await page.waitForFunction(
-    () => {
-      const el = document.querySelector(".table-pagination p span");
-
-      if (!el) return false;
-
-      return /^[0-9,]+$/.test(el.innerText.trim());
-    },
-    {
-      timeout: 120000,
-      polling: 500,
-    }
-  );
-
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // ================= GET RESULT =================
-  let totalResult = "0";
-
-  try {
-    totalResult = await page.$eval(
-      ".table-pagination p span",
-      (el) => el.innerText.trim()
-    );
-
-    if (!/^[0-9,]+$/.test(totalResult)) {
-      totalResult = "0";
-    }
-  } catch (err) {
-    totalResult = "0";
-  }
-
-  // ================= SAVE RESULT =================
-  stationResult.fields[field] = totalResult;
-
-  console.log(
-    "Circle =>",
-    circle_name,
-    "| Station =>",
-    stationName,
-    "| Field =>",
-    field,
-    "| EMPTY FILTER RESULT =>",
-    totalResult
-  );
-
-  continue;
-}
-
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-
-          await page.evaluate(() => {
-            const btn = [...document.querySelectorAll("button")].find(
-              (b) => b.innerText.trim() === "Apply",
+                // must contain valid number
+                return /^[0-9,]+$/.test(text);
+              },
+              {
+                timeout: 120000,
+                polling: 500,
+              },
             );
 
-            if (btn) btn.click();
-          });
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // ================= WAIT FOR RESULT =================
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+            // ================= GET RESULT =================
+            // ================= GET RESULT =================
 
-          await page.waitForFunction(
-            () => {
-              const el = document.querySelector(".table-pagination p span");
+            let totalResult = "0";
 
-              if (!el) return false;
+            try {
+              totalResult = await page.$eval(".table-pagination p span", (el) =>
+                el.innerText.trim(),
+              );
 
-              const text = el.innerText.trim();
-
-              // must contain valid number
-              return /^[0-9,]+$/.test(text);
-            },
-            {
-              timeout: 120000,
-              polling: 500,
-            },
-          );
-
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= GET RESULT =================
-          // ================= GET RESULT =================
-
-          let totalResult = "0";
-
-          try {
-            totalResult = await page.$eval(".table-pagination p span", (el) =>
-              el.innerText.trim(),
-            );
-
-            if (!/^[0-9,]+$/.test(totalResult)) {
+              if (!/^[0-9,]+$/.test(totalResult)) {
+                totalResult = "0";
+              }
+            } catch (err) {
               totalResult = "0";
             }
-          } catch (err) {
-            totalResult = "0";
+
+            // save field result
+            stationResult.fields[field] = totalResult;
+
+            console.log(
+              "Circle =>",
+              circle_name,
+              "| Station =>",
+              stationName,
+              "| Field =>",
+              field,
+              "| Result =>",
+              totalResult,
+            );
           }
-
-          // save field result
-          stationResult.fields[field] = totalResult;
-
-          console.log(
-            "Circle =>",
-            circle_name,
-            "| Station =>",
-            stationName,
-            "| Field =>",
-            field,
-            "| Result =>",
-            totalResult,
-          );
-        }
-// =====================================================
-// ================= FINAL RESULT ======================
-// =====================================================
+          // =====================================================
+          // ================= FINAL RESULT ======================
+          // =====================================================
 
           finalResults.push(stationResult);
-
 
           console.log("✅ Station Completed =>", stationName);
         } catch (stationError) {
@@ -1239,14 +1206,10 @@ if (!selected) {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
 const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
- 
-
- 
-  
   //============ GO TO PAGE =============================
 
   await page.goto(
@@ -1268,198 +1231,109 @@ const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
   // wait page load
   await new Promise((resolve) => setTimeout(resolve, 3000));
 
-
   try {
-  
-  // ================= GROUP DATA =================
-
+    // ================= GROUP DATA =================
 
     const grouped = await groupCircleStations(circle_station);
 
+    // ================= FINAL RESULT ARRAY =================
 
     // ================= FINAL RESULT ARRAY =================
 
-// ================= FINAL RESULT ARRAY =================
+    const finalResults = [];
 
-const finalResults = [];
+    // =====================================================
+    // ================= FIELD LOOP =========================
+    // =====================================================
 
-// =====================================================
-// ================= FIELD LOOP =========================
-// =====================================================
+    for (let field of recordFields_myJurisdiction_header) {
+      field = field.trim();
 
-for (let field of recordFields_myJurisdiction_header) {
+      let tabid = "";
 
-  field = field.trim();
+      if (field == "myJurisdiction DCRB Approved") {
+        tabid = "#rc-tabs-0-tab-approved";
+      } else if (field == "myJurisdiction Beat Verification Pending") {
+        tabid = "#rc-tabs-0-tab-verification_pending";
+      } else if (field == "myJurisdiction Beat Verification Completed") {
+        tabid = "#rc-tabs-0-tab-verified";
+      } else if (
+        field == "myJurisdiction Incorrect Address Reported by Beat Officer"
+      ) {
+        tabid = "#rc-tabs-0-tab-incorrect_address";
+      }
 
-  let tabid = "";
+      // ================= INVALID TAB =================
 
-  if (field == "myJurisdiction DCRB Approved") {
-    tabid = "#rc-tabs-0-tab-approved";
-  }
-  else if (field == "myJurisdiction Beat Verification Pending") {
-    tabid = "#rc-tabs-0-tab-verification_pending";
-  }
-  else if (field == "myJurisdiction Beat Verification Completed") {
-    tabid = "#rc-tabs-0-tab-verified";
-  }
-  else if (field == "myJurisdiction Incorrect Address Reported by Beat Officer") {
-    tabid = "#rc-tabs-0-tab-incorrect_address";
-  }
-
-  // ================= INVALID TAB =================
-
-  if (!tabid) {
-
-    console.log("❌ INVALID TAB =>", field);
-
-    continue;
-  }
-
-  // ================= CLICK TAB =================
-
-  await page.click(tabid);
-
-  await new Promise((resolve) => setTimeout(resolve, 4000));
-
-  console.log("\n==============================");
-  console.log("TAB =>", field);
-  console.log("==============================\n");
-
-  // =====================================================
-  // ================= CIRCLE LOOP ========================
-  // =====================================================
-
-  for (const circle_name of Object.keys(grouped)) {
-
-    const stations = grouped[circle_name];
-
-    try {
-
-      // ================= CLEAR OLD CIRCLE =================
-
-      await page.click("#rc_select_0", {
-        clickCount: 3,
-      });
-
-      await page.keyboard.press("Backspace");
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // ================= SELECT CIRCLE =================
-
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", "")
-      );
-
-      await page.waitForFunction(() => {
-        return document.querySelectorAll(".ant-select-item-option").length > 0;
-      });
-
-      const circleSelected = await page.evaluate((circleName) => {
-
-        const normalize = (str) =>
-          str.toLowerCase().replace(/\s+/g, " ").trim();
-
-        const target = normalize(circleName);
-
-        const options = document.querySelectorAll(".ant-select-item-option");
-
-        for (const option of options) {
-
-          const text = normalize(option.innerText);
-
-          if (text.includes(target)) {
-
-            option.click();
-
-            return true;
-          }
-        }
-
-        return false;
-
-      }, circle_name);
-
-      if (!circleSelected) {
-
-        console.log("❌ CIRCLE NOT FOUND =>", circle_name);
+      if (!tabid) {
+        console.log("❌ INVALID TAB =>", field);
 
         continue;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // ================= CLICK TAB =================
+
+      await page.click(tabid);
+
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+
+      console.log("\n==============================");
+      console.log("TAB =>", field);
+      console.log("==============================\n");
 
       // =====================================================
-      // ================= STATION LOOP =======================
+      // ================= CIRCLE LOOP ========================
       // =====================================================
 
-      for (const stationName of stations) {
+      for (const circle_name of Object.keys(grouped)) {
+        const stations = grouped[circle_name];
 
         try {
+          // ================= CLEAR OLD CIRCLE =================
 
-          // ================= CLEAR OLD STATION =================
-
-          await page.evaluate(() => {
-
-            const allSelects = document.querySelectorAll(".ant-select");
-
-            const select = allSelects[1];
-
-            if (!select) return;
-
-            const clearBtn = select.querySelector(".ant-select-clear");
-
-            if (clearBtn) {
-              clearBtn.click();
-            }
-
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // ================= SELECT STATION =================
-
-          await page.click("#rc_select_1", {
+          await page.click("#rc_select_0", {
             clickCount: 3,
           });
 
           await page.keyboard.press("Backspace");
 
-          await page.type("#rc_select_1", stationName);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // ================= SELECT CIRCLE =================
+
+          await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
 
           await page.waitForFunction(() => {
-            return document.querySelectorAll(".ant-select-item-option").length > 0;
+            return (
+              document.querySelectorAll(".ant-select-item-option").length > 0
+            );
           });
 
-          const stationSelected = await page.evaluate((station) => {
-
+          const circleSelected = await page.evaluate((circleName) => {
             const normalize = (str) =>
               str.toLowerCase().replace(/\s+/g, " ").trim();
 
-            const target = normalize(station);
+            const target = normalize(circleName);
 
-            const items = document.querySelectorAll(".ant-select-item-option");
+            const options = document.querySelectorAll(
+              ".ant-select-item-option",
+            );
 
-            for (const el of items) {
+            for (const option of options) {
+              const text = normalize(option.innerText);
 
-              const text = normalize(el.innerText);
-
-              if (text === target) {
-
-                el.click();
+              if (text.includes(target)) {
+                option.click();
 
                 return true;
               }
             }
 
             return false;
+          }, circle_name);
 
-          }, stationName);
-
-          if (!stationSelected) {
-
-            console.log("❌ STATION NOT FOUND =>", stationName);
+          if (!circleSelected) {
+            console.log("❌ CIRCLE NOT FOUND =>", circle_name);
 
             continue;
           }
@@ -1467,145 +1341,197 @@ for (let field of recordFields_myJurisdiction_header) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
 
           // =====================================================
-          // ================= APPLY FILTER =======================
+          // ================= STATION LOOP =======================
           // =====================================================
 
-          const oldValue = await page.$eval(
-            ".table-pagination p span",
-            (el) => el.innerText.trim()
-          ).catch(() => "0");
+          for (const stationName of stations) {
+            try {
+              // ================= CLEAR OLD STATION =================
 
-          await page.evaluate(() => {
+              await page.evaluate(() => {
+                const allSelects = document.querySelectorAll(".ant-select");
 
-            const btn = [...document.querySelectorAll("button")].find(
-              (b) => b.innerText.trim() === "Apply"
-            );
+                const select = allSelects[1];
 
-            if (btn) btn.click();
+                if (!select) return;
 
-          });
+                const clearBtn = select.querySelector(".ant-select-clear");
 
-          // ================= WAIT RESULT CHANGE =================
+                if (clearBtn) {
+                  clearBtn.click();
+                }
+              });
 
-          await page.waitForFunction(
-            (previous) => {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              const el = document.querySelector(".table-pagination p span");
+              // ================= SELECT STATION =================
 
-              if (!el) return false;
+              await page.click("#rc_select_1", {
+                clickCount: 3,
+              });
 
-              const current = el.innerText.trim();
+              await page.keyboard.press("Backspace");
 
-              return (
-                /^[0-9,]+$/.test(current)
+              await page.type("#rc_select_1", stationName);
+
+              await page.waitForFunction(() => {
+                return (
+                  document.querySelectorAll(".ant-select-item-option").length >
+                  0
+                );
+              });
+
+              const stationSelected = await page.evaluate((station) => {
+                const normalize = (str) =>
+                  str.toLowerCase().replace(/\s+/g, " ").trim();
+
+                const target = normalize(station);
+
+                const items = document.querySelectorAll(
+                  ".ant-select-item-option",
+                );
+
+                for (const el of items) {
+                  const text = normalize(el.innerText);
+
+                  if (text === target) {
+                    el.click();
+
+                    return true;
+                  }
+                }
+
+                return false;
+              }, stationName);
+
+              if (!stationSelected) {
+                console.log("❌ STATION NOT FOUND =>", stationName);
+
+                continue;
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // =====================================================
+              // ================= APPLY FILTER =======================
+              // =====================================================
+
+              const oldValue = await page
+                .$eval(".table-pagination p span", (el) => el.innerText.trim())
+                .catch(() => "0");
+
+              await page.evaluate(() => {
+                const btn = [...document.querySelectorAll("button")].find(
+                  (b) => b.innerText.trim() === "Apply",
+                );
+
+                if (btn) btn.click();
+              });
+
+              // ================= WAIT RESULT CHANGE =================
+
+              await page.waitForFunction(
+                (previous) => {
+                  const el = document.querySelector(".table-pagination p span");
+
+                  if (!el) return false;
+
+                  const current = el.innerText.trim();
+
+                  return /^[0-9,]+$/.test(current);
+                },
+                {
+                  timeout: 120000,
+                  polling: 500,
+                },
+                oldValue,
               );
 
-            },
-            {
-              timeout: 120000,
-              polling: 500,
-            },
-            oldValue
-          );
+              await new Promise((resolve) => setTimeout(resolve, 1500));
 
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+              // =====================================================
+              // ================= GET RESULT =========================
+              // =====================================================
 
-          // =====================================================
-          // ================= GET RESULT =========================
-          // =====================================================
+              let totalResult = "0";
 
-          let totalResult = "0";
+              try {
+                totalResult = await page.$eval(
+                  ".table-pagination p span",
+                  (el) => el.innerText.trim(),
+                );
 
-          try {
+                if (!/^[0-9,]+$/.test(totalResult)) {
+                  totalResult = "0";
+                }
+              } catch (err) {
+                totalResult = "0";
+              }
 
-            totalResult = await page.$eval(
-              ".table-pagination p span",
-              (el) => el.innerText.trim()
-            );
+              // =====================================================
+              // ================= FIND EXISTING OBJECT ===============
+              // =====================================================
 
-            if (!/^[0-9,]+$/.test(totalResult)) {
-              totalResult = "0";
+              let stationResult = finalResults.find(
+                (item) =>
+                  item.circle_name === circle_name &&
+                  item.station_name === stationName,
+              );
+
+              // ================= CREATE IF NOT EXISTS =================
+
+              if (!stationResult) {
+                stationResult = {
+                  circle_name,
+                  station_name: stationName,
+                  fields: {},
+                };
+
+                finalResults.push(stationResult);
+              }
+
+              // ================= SAVE FIELD RESULT =================
+
+              stationResult.fields[field] = totalResult;
+
+              // ================= LOG RESULT =================
+
+              console.log(
+                "Circle =>",
+                circle_name,
+                "| Station =>",
+                stationName,
+                "| Field =>",
+                field,
+                "| Result =>",
+                totalResult,
+              );
+            } catch (stationError) {
+              console.log(
+                "❌ STATION ERROR =>",
+                stationName,
+                stationError.message,
+              );
             }
-
-          } catch (err) {
-
-            totalResult = "0";
           }
-
-          // =====================================================
-          // ================= FIND EXISTING OBJECT ===============
-          // =====================================================
-
-          let stationResult = finalResults.find(
-            (item) =>
-              item.circle_name === circle_name &&
-              item.station_name === stationName
-          );
-
-          // ================= CREATE IF NOT EXISTS =================
-
-          if (!stationResult) {
-
-            stationResult = {
-              circle_name,
-              station_name: stationName,
-              fields: {},
-            };
-
-            finalResults.push(stationResult);
-          }
-
-          // ================= SAVE FIELD RESULT =================
-
-          stationResult.fields[field] = totalResult;
-
-          // ================= LOG RESULT =================
-
-          console.log(
-            "Circle =>",
-            circle_name,
-            "| Station =>",
-            stationName,
-            "| Field =>",
-            field,
-            "| Result =>",
-            totalResult
-          );
-
-        } catch (stationError) {
-
-          console.log(
-            "❌ STATION ERROR =>",
-            stationName,
-            stationError.message
-          );
+        } catch (circleError) {
+          console.log("❌ CIRCLE ERROR =>", circle_name, circleError.message);
         }
       }
-
-    } catch (circleError) {
-
-      console.log(
-        "❌ CIRCLE ERROR =>",
-        circle_name,
-        circleError.message
-      );
     }
-  }
-}
 
-// ================= FINAL RESULTS =================
+    // ================= FINAL RESULTS =================
 
-console.log("================ FINAL RESULTS ================");
+    console.log("================ FINAL RESULTS ================");
 
-console.log(JSON.stringify(finalResults, null, 2));
+    console.log(JSON.stringify(finalResults, null, 2));
 
-return finalResults;
-
+    return finalResults;
   } catch (error) {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
 const yakshBeatSuchna = async (page) => {
@@ -1615,29 +1541,21 @@ const yakshBeatSuchna = async (page) => {
 
   await page.waitForSelector("#rc_select_0");
 
-
   try {
-
     //     // ================= GROUP DATA =================
-
 
     const grouped = await groupCircleStations(circle_station);
 
     // ================= FINAL RESULT =================
     const finalResults = [];
 
-
     for (const circle_name of Object.keys(grouped)) {
       const stations = grouped[circle_name];
-
 
       // ================= SELECT CIRCLE =================
       await page.click("#rc_select_0");
 
-      await page.type(
-        "#rc_select_0",
-        circle_name.replace("CIRCLE ", ""),
-      );
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
 
       await page.waitForSelector(".ant-select-item-option");
 
@@ -1729,9 +1647,8 @@ const yakshBeatSuchna = async (page) => {
           let totalResult = "0";
 
           try {
-            totalResult = await page.$eval(
-              ".table-pagination p span",
-              (el) => el.innerText.trim(),
+            totalResult = await page.$eval(".table-pagination p span", (el) =>
+              el.innerText.trim(),
             );
 
             if (!/^[0-9,]+$/.test(totalResult)) {
@@ -1763,11 +1680,7 @@ const yakshBeatSuchna = async (page) => {
 
           console.log("✅ Station Completed =>", stationName);
         } catch (stationError) {
-          console.log(
-            "❌ STATION ERROR =>",
-            stationName,
-            stationError.message,
-          );
+          console.log("❌ STATION ERROR =>", stationName, stationError.message);
         }
       }
 
@@ -1789,9 +1702,412 @@ const yakshBeatSuchna = async (page) => {
     console.log("ERROR =>", error);
 
     return [];
-  } 
+  }
 };
 
+const yakshBeatSuchnaApproved = async (page) => {
+  await page.goto("https://yaksh.ai/panel/view-beat-suchana", {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.waitForSelector("#rc_select_0");
+
+  try {
+    // =====================================================
+    // GROUP DATA
+    // =====================================================
+
+    const grouped = await groupCircleStations(circle_station);
+
+    // =====================================================
+    // FINAL RESULT
+    // =====================================================
+
+    const finalResults = [];
+
+    // =====================================================
+    // CIRCLE LOOP
+    // =====================================================
+
+    for (const circle_name of Object.keys(grouped)) {
+      const stations = grouped[circle_name];
+
+      console.log("======================================");
+      console.log("CIRCLE =>", circle_name);
+      console.log("======================================");
+
+      // =====================================================
+      // SELECT CIRCLE
+      // =====================================================
+
+      await page.click("#rc_select_0");
+
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
+
+      await page.waitForSelector(".ant-select-item-option");
+
+      await page.evaluate((circleName) => {
+        const options = document.querySelectorAll(".ant-select-item-option");
+
+        for (const option of options) {
+          if (option.innerText.includes(circleName)) {
+            option.click();
+            break;
+          }
+        }
+      }, circle_name);
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      for (const stationName of stations) {
+        try {
+          console.log("======================================");
+          console.log("STATION =>", stationName);
+          console.log("======================================");
+
+          // =================================================
+          // CLEAR OLD STATION
+          // =================================================
+
+          await page.evaluate(() => {
+            const allSelects = document.querySelectorAll(".ant-select");
+
+            const select = allSelects[1];
+
+            if (!select) return;
+
+            const clearBtn = select.querySelector(".ant-select-clear");
+
+            if (clearBtn) clearBtn.click();
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // =================================================
+          // SELECT STATION
+          // =================================================
+
+          await page.click("#rc_select_1");
+
+          await page.type("#rc_select_1", stationName);
+
+          await page.waitForSelector(".ant-select-item-option");
+
+          await page.evaluate((station) => {
+            const normalize = (str) =>
+              str.toLowerCase().replace(/\s+/g, " ").trim();
+
+            const target = normalize(station);
+
+            const items = document.querySelectorAll(".ant-select-item-option");
+
+            for (const el of items) {
+              const text = normalize(el.innerText);
+
+              if (text === target) {
+                el.click();
+                return;
+              }
+            }
+          }, stationName);
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          // =================================================
+          // CREATE STATION RESULT
+          // =================================================
+
+          const stationResult = {
+            circle_name,
+            station_name: stationName,
+            fields: {},
+          };
+
+          // =================================================
+          // SELECT ACTION STATUS => Approved
+          // =================================================
+
+          await page.click("#rc_select_6");
+
+          await page.type("#rc_select_6", "Approved");
+
+          await page.waitForSelector(".ant-select-item-option");
+
+          await page.evaluate(() => {
+            const normalize = (str) =>
+              str.toLowerCase().replace(/\s+/g, " ").trim();
+
+            const target = normalize("Approved");
+
+            const items = document.querySelectorAll(".ant-select-item-option");
+
+            for (const el of items) {
+              const text = normalize(el.innerText);
+
+              if (text === target) {
+                el.click();
+                return;
+              }
+            }
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          // =====================================================
+          // RECORD FIELDS
+          // =====================================================
+
+          const recordFields_Beat = [
+            {
+              key: "Beat_Approved_chowki",
+              label: "Chowki Incharge",
+            },
+            {
+              key: "Beat_Approved_sho",
+              label: "SHO",
+            },
+            {
+              key: "Beat_Approved_co",
+              label: "CO",
+            },
+          ];
+
+          // =====================================================
+          // FIELD LOOP
+          // =====================================================
+
+          for (const recordField of recordFields_Beat) {
+            try {
+              console.log("Processing Field =>", recordField.label);
+
+              // =============================================
+              // CLEAR OLD FIELD
+              // =============================================
+
+              await page.evaluate(() => {
+                const input = document.querySelector("#rc_select_9");
+
+                if (!input) return;
+
+                const select = input.closest(".ant-select");
+
+                if (!select) return;
+
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) clearBtn.click();
+              });
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+
+              // =============================================
+              // OPEN SELECT LEVEL
+              // =============================================
+
+              await page.click("#rc_select_9");
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+
+              // =============================================
+              // SELECT FIELD
+              // =============================================
+
+              await page.evaluate((fieldName) => {
+                const normalize = (str) =>
+                  str.toLowerCase().replace(/\s+/g, " ").trim();
+
+                const target = normalize(fieldName);
+
+                const items = document.querySelectorAll(
+                  ".ant-select-item-option",
+                );
+
+                for (const el of items) {
+                  const text = normalize(el.innerText);
+
+                  if (text === target) {
+                    el.click();
+                    return;
+                  }
+                }
+              }, recordField.label);
+
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+
+              // =============================================
+              // APPLY
+              // =============================================
+
+              await page.evaluate(() => {
+                const btn = [...document.querySelectorAll("button")].find(
+                  (b) => b.innerText.trim() === "Apply",
+                );
+
+                if (btn) btn.click();
+              });
+
+              // =============================================
+              // WAIT RESULT
+              // =============================================
+
+              await page.waitForFunction(
+                () => {
+                  const el = document.querySelector(".table-pagination p span");
+
+                  if (!el) return false;
+
+                  return /^[0-9,]+$/.test(el.innerText.trim());
+                },
+                {
+                  timeout: 120000,
+                  polling: 500,
+                },
+              );
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+
+              // =============================================
+              // GET RESULT
+              // =============================================
+
+              let fieldResult = "0";
+
+              try {
+                fieldResult = await page.$eval(
+                  ".table-pagination p span",
+                  (el) => el.innerText.trim(),
+                );
+
+                if (!/^[0-9,]+$/.test(fieldResult)) {
+                  fieldResult = "0";
+                }
+              } catch (err) {
+                fieldResult = "0";
+              }
+
+              // =============================================
+              // SAVE RESULT
+              // =============================================
+
+              stationResult.fields[recordField.key] = fieldResult;
+
+              console.log(
+                "Circle =>",
+                circle_name,
+                "| Station =>",
+                stationName,
+                "| Field =>",
+                recordField.label,
+                "| Result =>",
+                fieldResult,
+              );
+
+              // =============================================
+              // CLEAR FIELD AFTER APPLY
+              // =============================================
+
+              // CLEAR FIELD AFTER APPLY
+              // remove selected tags like:
+              // Chowki Incharge ×
+              // +2...
+              // =============================================
+
+              await page.evaluate(() => {
+                const input = document.querySelector("#rc_select_9");
+
+                if (!input) return;
+
+                const select = input.closest(".ant-select");
+
+                if (!select) return;
+
+                // ===========================================
+                // REMOVE ALL SELECTED ITEMS
+                // ===========================================
+
+                const removeButtons = select.querySelectorAll(
+                  ".ant-select-selection-item-remove",
+                );
+
+                removeButtons.forEach((btn) => {
+                  btn.click();
+                });
+
+                // ===========================================
+                // ALSO CLICK CLEAR BUTTON IF EXISTS
+                // ===========================================
+
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) {
+                  clearBtn.click();
+                }
+              });
+
+              //==============================================
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            } catch (fieldError) {
+              console.log(
+                "❌ FIELD ERROR =>",
+                stationName,
+                "| Field =>",
+                recordField.label,
+                fieldError.message,
+              );
+
+              stationResult.fields[recordField.key] = "0";
+            }
+          }
+
+          // =================================================
+          // SAVE FINAL RESULT
+          // =================================================
+
+          finalResults.push(stationResult);
+
+          // =================================================
+          // CLEAR APPROVED
+          // =================================================
+
+          await page.evaluate(() => {
+            const input = document.querySelector("#rc_select_6");
+
+            if (!input) return;
+
+            const select = input.closest(".ant-select");
+
+            if (!select) return;
+
+            const clearBtn = select.querySelector(".ant-select-clear");
+
+            if (clearBtn) clearBtn.click();
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          console.log("✅ Station Completed =>", stationName);
+        } catch (stationError) {
+          console.log("❌ STATION ERROR =>", stationName, stationError.message);
+        }
+      }
+    }
+
+    // =====================================================
+    // FINAL RESULTS
+    // =====================================================
+
+    console.log("================ FINAL RESULTS ================");
+
+    console.log(JSON.stringify(finalResults, null, 2));
+
+    return finalResults;
+  } catch (error) {
+    console.log("ERROR =>", error);
+
+    return [];
+  }
+};
 
 const crimanlVerificationData = async (page) => {
   await page.goto("https://yaksh.ai/panel/performance-panel", {
@@ -1822,44 +2138,37 @@ const crimanlVerificationData = async (page) => {
 
     // ================= LOG CIRCLE NAMES =================
 
-
     if (circleNames.length === 0) {
       console.log("No circle names found in the data.");
       return [];
     }
     console.log("Circle Names =>", circleNames[0]);
-      // ================= SELECT CIRCLE =================
-   
+    // ================= SELECT CIRCLE =================
 
+    // wait table load
+    await page.waitForSelector(".ant-table-tbody .ant-table-row", {
+      visible: true,
+      timeout: 30000,
+    });
 
+    // click row where circle name matches
+    await page.evaluate((targetCircle) => {
+      const rows = document.querySelectorAll(".ant-table-tbody .ant-table-row");
 
-            // wait table load
-            await page.waitForSelector(".ant-table-tbody .ant-table-row", {
-              visible: true,
-              timeout: 30000,
-            });
+      for (const row of rows) {
+        const cells = row.querySelectorAll(".ant-table-cell");
 
-            // click row where circle name matches
-            await page.evaluate((targetCircle) => {
-              const rows = document.querySelectorAll(
-                ".ant-table-tbody .ant-table-row"
-              );
+        // 2nd column = Circle Name
+        const circleText = cells[1]?.innerText?.trim();
 
-              for (const row of rows) {
-                const cells = row.querySelectorAll(".ant-table-cell");
+        if (circleText === targetCircle) {
+          row.click();
+          break;
+        }
+      }
+    }, circleNames[0]);
 
-                // 2nd column = Circle Name
-                const circleText = cells[1]?.innerText?.trim();
-
-                if (circleText === targetCircle) {
-                  row.click();
-                  break;
-                }
-              }
-            }, circleNames[0]);
-
-            console.log("✅ Clicked =>", circleNames[0]);
-
+    console.log("✅ Clicked =>", circleNames[0]);
 
     // ================= LOG CIRCLE NAMES =================
     // ================= LOOP ALL CIRCLES =================
@@ -1879,22 +2188,16 @@ const crimanlVerificationData = async (page) => {
           const selects = document.querySelectorAll(".ant-select");
 
           for (const select of selects) {
-            const selected = select.querySelector(
-              ".ant-select-selection-item"
-            );
+            const selected = select.querySelector(".ant-select-selection-item");
 
-            if (
-              selected &&
-              selected.innerText.trim().startsWith("CIRCLE")
-            ) {
-              const clearBtn =
-                select.querySelector(".ant-select-clear");
+            if (selected && selected.innerText.trim().startsWith("CIRCLE")) {
+              const clearBtn = select.querySelector(".ant-select-clear");
 
               if (clearBtn) {
                 clearBtn.dispatchEvent(
                   new MouseEvent("mousedown", {
                     bubbles: true,
-                  })
+                  }),
                 );
 
                 clearBtn.click();
@@ -1921,9 +2224,7 @@ const crimanlVerificationData = async (page) => {
 
         // ================= SELECT OPTION =================
         await page.evaluate((target) => {
-          const options = document.querySelectorAll(
-            ".ant-select-item-option"
-          );
+          const options = document.querySelectorAll(".ant-select-item-option");
 
           for (const option of options) {
             const text = option.innerText.trim();
@@ -1956,20 +2257,17 @@ const crimanlVerificationData = async (page) => {
         console.log("🚀 APPLY CLICKED");
 
         // ================= WAIT TABLE LOAD =================
-        await page.waitForSelector(
-          ".ant-table-tbody .ant-table-row",
-          {
-            visible: true,
-            timeout: 60000,
-          }
-        );
+        await page.waitForSelector(".ant-table-tbody .ant-table-row", {
+          visible: true,
+          timeout: 60000,
+        });
 
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // ================= GET TABLE DATA =================
         const tableData = await page.evaluate((circleName) => {
           const rows = document.querySelectorAll(
-            ".ant-table-tbody .ant-table-row"
+            ".ant-table-tbody .ant-table-row",
           );
 
           const results = [];
@@ -1983,34 +2281,23 @@ const crimanlVerificationData = async (page) => {
               return value.replace(/,/g, "").trim();
             };
 
-            const stationName =
-              cells[1]?.innerText?.trim() || "";
+            const stationName = cells[1]?.innerText?.trim() || "";
 
-            const totalCriminal = cleanNumber(
-              cells[2]?.innerText || "0"
-            );
+            const totalCriminal = cleanNumber(cells[2]?.innerText || "0");
 
             const verifiedByBeatOfficer = cleanNumber(
-              cells[3]?.innerText || "0"
+              cells[3]?.innerText || "0",
             );
 
-            const incorrectAddress = cleanNumber(
-              cells[4]?.innerText || "0"
-            );
+            const incorrectAddress = cleanNumber(cells[4]?.innerText || "0");
 
-            const totalVerified = cleanNumber(
-              cells[5]?.innerText || "0"
-            );
+            const totalVerified = cleanNumber(cells[5]?.innerText || "0");
 
-            const verificationPercentage =
-              cells[6]?.innerText?.trim() || "0 %";
+            const verificationPercentage = cells[6]?.innerText?.trim() || "0 %";
 
-            const pendingToVerify = cleanNumber(
-              cells[7]?.innerText || "0"
-            );
+            const pendingToVerify = cleanNumber(cells[7]?.innerText || "0");
 
-            const pendingPercentage =
-              cells[8]?.innerText?.trim() || "0 %";
+            const pendingPercentage = cells[8]?.innerText?.trim() || "0 %";
 
             results.push({
               circle_name: circleName,
@@ -2037,27 +2324,20 @@ const crimanlVerificationData = async (page) => {
               //   pending_percentage: pendingPercentage,
               // },
               fields: {
-              "Total Criminal for Beat Verification":
-                totalCriminal,
+                "Total Criminal for Beat Verification": totalCriminal,
 
-              "Criminal Verified by Beat Officer":
-                verifiedByBeatOfficer,
+                "Criminal Verified by Beat Officer": verifiedByBeatOfficer,
 
-              "Incorrect Add Reported by Beat Officer":
-                incorrectAddress,
+                "Incorrect Add Reported by Beat Officer": incorrectAddress,
 
-              "Total Verified":
-                totalVerified,
+                "Total Verified": totalVerified,
 
-              "Verification %":
-                verificationPercentage,
+                "Verification %": verificationPercentage,
 
-              "Pending to Verify":
-                pendingToVerify,
+                "Pending to Verify": pendingToVerify,
 
-              "Pending %":
-                pendingPercentage,
-            },
+                "Pending %": pendingPercentage,
+              },
             });
           });
 
@@ -2069,14 +2349,10 @@ const crimanlVerificationData = async (page) => {
 
         console.log(
           `✅ ${circleName} COMPLETED | RECORDS =>`,
-          tableData.length
+          tableData.length,
         );
       } catch (circleError) {
-        console.log(
-          "❌ CIRCLE ERROR =>",
-          circleName,
-          circleError.message
-        );
+        console.log("❌ CIRCLE ERROR =>", circleName, circleError.message);
       }
     }
 
@@ -2093,19 +2369,14 @@ const crimanlVerificationData = async (page) => {
   }
 };
 
-
-
 // ======================================================
 // ================= MAIN PUPPETEER =====================
 // ======================================================
 
-
-
 const yakshPuppeteerpro = async () => {
   let browser;
   try {
-
-     // ======================================================
+    // ======================================================
     // =================  for mac browser======================
     // ======================================================
 
@@ -2155,10 +2426,9 @@ const yakshPuppeteerpro = async () => {
       ],
     });
 
-
-     // ======================================================
-     // ================= For windows broswer ===============
-     // ======================================================
+    // ======================================================
+    // ================= For windows broswer ===============
+    // ======================================================
 
     //     browser = await puppeteer.launch({
     //      headless: true,
@@ -2206,7 +2476,6 @@ const yakshPuppeteerpro = async () => {
     //   ],
     // });
 
-
     // ================= PAGE =================
     const page = await browser.newPage();
 
@@ -2225,53 +2494,49 @@ const yakshPuppeteerpro = async () => {
     // ================= MISSING RECORD =================
     const missingRecordData = await yakshMissingRecordInfoPage(page);
 
-    console.log(
-      "================ MISSING RECORD DATA ================",
-    );
+    console.log("================ MISSING RECORD DATA ================");
 
     console.log(JSON.stringify(missingRecordData, null, 2));
 
-
-      // ================= CRIMINAL RECORD DCRB Approved =================
+    // ================= CRIMINAL RECORD DCRB Approved =================
     const yakshCriminalRecordMyJurisdictionDcrbData =
       await yakshCriminalRecordMyJurisdictionDcrb(page);
 
-    console.log("================ CRIMINAL RECORD DATA ================",);
+    console.log("================ CRIMINAL RECORD DATA ================");
 
-    console.log(JSON.stringify(yakshCriminalRecordMyJurisdictionDcrbData,null,2,),);
+    console.log(
+      JSON.stringify(yakshCriminalRecordMyJurisdictionDcrbData, null, 2),
+    );
 
     // ================= CRIMINAL RECORD =================
     const yakshCriminalRecordMyJurisdictionData =
       await yakshCriminalRecordMyJurisdiction(page);
 
-    console.log(
-      "================ CRIMINAL RECORD DATA ================",
-    );
+    console.log("================ CRIMINAL RECORD DATA ================");
 
-    console.log(
-      JSON.stringify(
-        yakshCriminalRecordMyJurisdictionData,
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(yakshCriminalRecordMyJurisdictionData, null, 2));
 
-          // ================= myJurisdiction header =================
+    // ================= myJurisdiction header =================
     const yakshCriminalRecordMyJurisdictionHeadersData =
       await yakshCriminalRecordMyJurisdictionHeaders(page);
 
-    console.log("================ CRIMINAL RECORD DATA ================",);
+    console.log("================ CRIMINAL RECORD DATA ================");
 
-    console.log(JSON.stringify(yakshCriminalRecordMyJurisdictionHeadersData,null,2,),);
+    console.log(JSON.stringify(yakshCriminalRecordMyJurisdictionHeadersData, null, 2),);
 
     // ================= BEAT SUCHNA =================
     const yakshBeatSuchnaData = await yakshBeatSuchna(page);
 
-    console.log(
-      "================ BEAT SUCHNA DATA ================",
-    );
+    console.log("================ BEAT SUCHNA DATA ================");
 
     console.log(JSON.stringify(yakshBeatSuchnaData, null, 2));
+
+    // ================= BEAT SUCHNA Approved=================
+    const yakshBeatSuchnaApprovedData = await yakshBeatSuchnaApproved(page);
+
+    console.log("================ BEAT SUCHNA DATA ================");
+
+    console.log(JSON.stringify(yakshBeatSuchnaApprovedData, null, 2));
 
     // ================= CRIMINAL VERIFICATION DATA =================
     const crimanlVerificationDataData = await crimanlVerificationData(page);
@@ -2288,26 +2553,26 @@ const yakshPuppeteerpro = async () => {
     mergeArrayData(mergedMap, missingRecordData);
 
     // merge criminal record dcrb approved
-    mergeArrayData(mergedMap,yakshCriminalRecordMyJurisdictionDcrbData,);
+    mergeArrayData(mergedMap, yakshCriminalRecordMyJurisdictionDcrbData);
 
     // merge criminal record
-    mergeArrayData(mergedMap,yakshCriminalRecordMyJurisdictionData,);
-
+    mergeArrayData(mergedMap, yakshCriminalRecordMyJurisdictionData);
 
     // merge myJurisdiction header
-    mergeArrayData(mergedMap,yakshCriminalRecordMyJurisdictionHeadersData,);
-    
+    mergeArrayData(mergedMap, yakshCriminalRecordMyJurisdictionHeadersData);
+
     // merge beat suchna
-    mergeArrayData(mergedMap,yakshBeatSuchnaData,);
+    mergeArrayData(mergedMap, yakshBeatSuchnaData);
+
+  // merge beat suchna Approved
+    mergeArrayData(mergedMap, yakshBeatSuchnaApprovedData);
 
     // merge criminal verification data
-    mergeArrayData(mergedMap,crimanlVerificationDataData);
+    mergeArrayData(mergedMap, crimanlVerificationDataData);
     // ================= FINAL MERGED ARRAY =================
     const mergedData = Object.values(mergedMap);
 
-    console.log(
-      "================ MERGED DATA ================",
-    );
+    console.log("================ MERGED DATA ================");
 
     console.log(JSON.stringify(mergedData, null, 2));
 
@@ -2328,6 +2593,5 @@ const yakshPuppeteerpro = async () => {
     }
   }
 };
-
 
 yakshPuppeteerpro();

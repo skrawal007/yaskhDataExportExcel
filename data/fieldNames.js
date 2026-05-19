@@ -58,6 +58,12 @@ const recordFields_myJurisdiction_header = [
   "myJurisdiction Incorrect Address Reported by Beat Officer",
 ];
 
+const recordFields_Beat=[
+    "Beat_Approved_chowki",
+    "Beat_Approved_sho",
+    "Beat_Approved_co"
+];
+
 const recordFields_excel = [
   "Name (NF)",
   "Alias (NF)",
@@ -94,8 +100,7 @@ const recordFields_excel = [
   "Zila Badar",
   "Death",
   "Jail",
-  "beat_suchna",
-
+  
   "Total Criminal for Beat Verification",
   "Criminal Verified by Beat Officer",
   "Incorrect Add Reported by Beat Officer",
@@ -108,6 +113,14 @@ const recordFields_excel = [
   "myJurisdiction Beat Verification Pending",
   "myJurisdiction Beat Verification Completed",
   "myJurisdiction Incorrect Address Reported by Beat Officer",
+
+
+  "beat_suchna",
+  "Beat_Approved_chowki",
+  "Beat_Approved_sho",
+  "Beat_Approved_co",
+
+
 ];
 
 module.exports = {
@@ -115,5 +128,6 @@ module.exports = {
   recordFields_Juridiction,
   recordFields_Juridiction_dcrb,
   recordFields_excel,
-  recordFields_myJurisdiction_header
+  recordFields_myJurisdiction_header,
+  recordFields_Beat
 };

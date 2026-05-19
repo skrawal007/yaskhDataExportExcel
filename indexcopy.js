@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const { circle_station } = require("./data/stationData");
-const { recordFields_myJurisdiction_header } = require("./data/fieldNames");
+const { recordFields_Beat } = require("./data/fieldNames");
 const {
   groupCircleStations,
   getCircleNames,
@@ -10,181 +10,218 @@ const { mergeArrayData } = require("./utils/mergeArrayData");
 const { exportStationFieldsToExcel } = require("./utils/excelCreate");
 const puppeteer = require("puppeteer");
 
-const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
-  //============ GO TO PAGE =============================
-
-  await page.goto(
-    "https://yaksh.ai/panel/all-criminal-record/?by=address&address_subdistrict=my",
-    {
-      waitUntil: "domcontentloaded",
-    },
-  );
-
-  // wait tabs
-  await page.waitForSelector(".ant-tabs-nav-list", {
-    visible: true,
-    timeout: 60000,
+const yakshBeatSuchnaApproved = async (page) => {
+  await page.goto("https://yaksh.ai/panel/view-beat-suchana", {
+    waitUntil: "domcontentloaded",
   });
 
-  // click incorrect address tab
-  await page.click('[data-node-key="approved"]');
-
-  // wait page load
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await page.waitForSelector("#rc_select_0");
 
   try {
-    // ================= GROUP DATA =================
+    // =====================================================
+    // GROUP DATA
+    // =====================================================
 
     const grouped = await groupCircleStations(circle_station);
 
-    // ================= FINAL RESULT ARRAY =================
+    // =====================================================
+    // FINAL RESULT
+    // =====================================================
 
     const finalResults = [];
 
     // =====================================================
-    // ================= FIELD LOOP =========================
+    // CIRCLE LOOP
     // =====================================================
 
-    for (let field of recordFields_myJurisdiction_header) {
-      field = field.trim();
+    for (const circle_name of Object.keys(grouped)) {
+      const stations = grouped[circle_name];
 
-      let tabid = "";
-
-      if (field == "myJurisdiction DCRB Approved") {
-        tabid = "#rc-tabs-0-tab-approved";
-      } else if (field == "myJurisdiction Beat Verification Pending") {
-        tabid = "#rc-tabs-0-tab-verification_pending";
-      } else if (field == "myJurisdiction Beat Verification Completed") {
-        tabid = "#rc-tabs-0-tab-verified";
-      } else if (
-        field == "myJurisdiction Incorrect Address Reported by Beat Officer"
-      ) {
-        tabid = "#rc-tabs-0-tab-incorrect_address";
-      }
-
-      // ================= INVALID TAB =================
-
-      if (!tabid) {
-        console.log("❌ INVALID TAB =>", field);
-
-        continue;
-      }
-
-      // ================= CLICK TAB =================
-
-      await page.click(tabid);
-
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-
-      console.log("\n==============================");
-      console.log("TAB =>", field);
-      console.log("==============================\n");
+      console.log("======================================");
+      console.log("CIRCLE =>", circle_name);
+      console.log("======================================");
 
       // =====================================================
-      // ================= CIRCLE LOOP ========================
+      // SELECT CIRCLE
       // =====================================================
 
-      for (const circle_name of Object.keys(grouped)) {
-        const stations = grouped[circle_name];
+      await page.click("#rc_select_0");
 
+      await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
+
+      await page.waitForSelector(".ant-select-item-option");
+
+      await page.evaluate((circleName) => {
+        const options = document.querySelectorAll(".ant-select-item-option");
+
+        for (const option of options) {
+          if (option.innerText.includes(circleName)) {
+            option.click();
+            break;
+          }
+        }
+      }, circle_name);
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      for (const stationName of stations) {
         try {
-          // ================= CLEAR OLD CIRCLE =================
+          console.log("======================================");
+          console.log("STATION =>", stationName);
+          console.log("======================================");
 
-          await page.click("#rc_select_0", {
-            clickCount: 3,
+          // =================================================
+          // CLEAR OLD STATION
+          // =================================================
+
+          await page.evaluate(() => {
+            const allSelects = document.querySelectorAll(".ant-select");
+
+            const select = allSelects[1];
+
+            if (!select) return;
+
+            const clearBtn = select.querySelector(".ant-select-clear");
+
+            if (clearBtn) clearBtn.click();
           });
-
-          await page.keyboard.press("Backspace");
 
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // ================= SELECT CIRCLE =================
+          // =================================================
+          // SELECT STATION
+          // =================================================
 
-          await page.type("#rc_select_0", circle_name.replace("CIRCLE ", ""));
+          await page.click("#rc_select_1");
 
-          await page.waitForFunction(() => {
-            return (
-              document.querySelectorAll(".ant-select-item-option").length > 0
-            );
-          });
+          await page.type("#rc_select_1", stationName);
 
-          const circleSelected = await page.evaluate((circleName) => {
+          await page.waitForSelector(".ant-select-item-option");
+
+          await page.evaluate((station) => {
             const normalize = (str) =>
               str.toLowerCase().replace(/\s+/g, " ").trim();
 
-            const target = normalize(circleName);
+            const target = normalize(station);
 
-            const options = document.querySelectorAll(
-              ".ant-select-item-option",
-            );
+            const items = document.querySelectorAll(".ant-select-item-option");
 
-            for (const option of options) {
-              const text = normalize(option.innerText);
+            for (const el of items) {
+              const text = normalize(el.innerText);
 
-              if (text.includes(target)) {
-                option.click();
-
-                return true;
+              if (text === target) {
+                el.click();
+                return;
               }
             }
+          }, stationName);
 
-            return false;
-          }, circle_name);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
 
-          if (!circleSelected) {
-            console.log("❌ CIRCLE NOT FOUND =>", circle_name);
+          // =================================================
+          // CREATE STATION RESULT
+          // =================================================
 
-            continue;
-          }
+          const stationResult = {
+            circle_name,
+            station_name: stationName,
+            fields: {},
+          };
 
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          // =================================================
+          // SELECT ACTION STATUS => Approved
+          // =================================================
+
+          await page.click("#rc_select_6");
+
+          await page.type("#rc_select_6", "Approved");
+
+          await page.waitForSelector(".ant-select-item-option");
+
+          await page.evaluate(() => {
+            const normalize = (str) =>
+              str.toLowerCase().replace(/\s+/g, " ").trim();
+
+            const target = normalize("Approved");
+
+            const items = document.querySelectorAll(".ant-select-item-option");
+
+            for (const el of items) {
+              const text = normalize(el.innerText);
+
+              if (text === target) {
+                el.click();
+                return;
+              }
+            }
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 1500));
 
           // =====================================================
-          // ================= STATION LOOP =======================
+          // RECORD FIELDS
           // =====================================================
 
-          for (const stationName of stations) {
+          const recordFields_Beat = [
+            {
+              key: "Beat_Approved_chowki",
+              label: "Chowki Incharge",
+            },
+            {
+              key: "Beat_Approved_sho",
+              label: "SHO",
+            },
+            {
+              key: "Beat_Approved_co",
+              label: "CO",
+            },
+          ];
+
+          // =====================================================
+          // FIELD LOOP
+          // =====================================================
+
+          for (const recordField of recordFields_Beat) {
             try {
-              // ================= CLEAR OLD STATION =================
+              console.log("Processing Field =>", recordField.label);
+
+              // =============================================
+              // CLEAR OLD FIELD
+              // =============================================
 
               await page.evaluate(() => {
-                const allSelects = document.querySelectorAll(".ant-select");
+                const input = document.querySelector("#rc_select_9");
 
-                const select = allSelects[1];
+                if (!input) return;
+
+                const select = input.closest(".ant-select");
 
                 if (!select) return;
 
                 const clearBtn = select.querySelector(".ant-select-clear");
 
-                if (clearBtn) {
-                  clearBtn.click();
-                }
+                if (clearBtn) clearBtn.click();
               });
 
               await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              // ================= SELECT STATION =================
+              // =============================================
+              // OPEN SELECT LEVEL
+              // =============================================
 
-              await page.click("#rc_select_1", {
-                clickCount: 3,
-              });
+              await page.click("#rc_select_9");
 
-              await page.keyboard.press("Backspace");
+              await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              await page.type("#rc_select_1", stationName);
+              // =============================================
+              // SELECT FIELD
+              // =============================================
 
-              await page.waitForFunction(() => {
-                return (
-                  document.querySelectorAll(".ant-select-item-option").length >
-                  0
-                );
-              });
-
-              const stationSelected = await page.evaluate((station) => {
+              await page.evaluate((fieldName) => {
                 const normalize = (str) =>
                   str.toLowerCase().replace(/\s+/g, " ").trim();
 
-                const target = normalize(station);
+                const target = normalize(fieldName);
 
                 const items = document.querySelectorAll(
                   ".ant-select-item-option",
@@ -195,29 +232,16 @@ const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
 
                   if (text === target) {
                     el.click();
-
-                    return true;
+                    return;
                   }
                 }
+              }, recordField.label);
 
-                return false;
-              }, stationName);
+              await new Promise((resolve) => setTimeout(resolve, 1500));
 
-              if (!stationSelected) {
-                console.log("❌ STATION NOT FOUND =>", stationName);
-
-                continue;
-              }
-
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-
-              // =====================================================
-              // ================= APPLY FILTER =======================
-              // =====================================================
-
-              const oldValue = await page
-                .$eval(".table-pagination p span", (el) => el.innerText.trim())
-                .catch(() => "0");
+              // =============================================
+              // APPLY
+              // =============================================
 
               await page.evaluate(() => {
                 const btn = [...document.querySelectorAll("button")].find(
@@ -227,115 +251,50 @@ const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
                 if (btn) btn.click();
               });
 
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-              // =====================================================
-              // ================= WAIT + RETRY RESULT ================
-              // =====================================================
+              // =============================================
+              // WAIT RESULT
+              // =============================================
 
-              let totalResult = "0";
+              await page.waitForFunction(
+                () => {
+                  const el = document.querySelector(".table-pagination p span");
 
-              let retryCount = 0;
+                  if (!el) return false;
 
-              const maxRetry = 5;
-
-              while (retryCount < maxRetry) {
-                try {
-                  // ================= WAIT RESULT =================
-
-                  await page.waitForFunction(
-                    () => {
-                      const el = document.querySelector(
-                        ".table-pagination p span",
-                      );
-
-                      if (!el) return false;
-
-                      const text = el.innerText.trim();
-
-                      return /^[0-9,]+$/.test(text);
-                    },
-                    {
-                      timeout: 30000,
-                      polling: 500,
-                    },
-                  );
-
-                  // ================= EXTRA WAIT =================
-
-                  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-                  // ================= GET RESULT =================
-
-                  totalResult = await page.$eval(
-                    ".table-pagination p span",
-                    (el) => el.innerText.trim(),
-                  );
-
-                  // ================= VALIDATE =================
-
-                  if (/^[0-9,]+$/.test(totalResult)) {
-                    console.log(
-                      `✅ RESULT FOUND => ${totalResult} | Retry => ${retryCount}`,
-                    );
-
-                    break;
-                  }
-                } catch (err) {
-                  console.log(
-                    `⚠️ RESULT NOT FOUND | Retry => ${retryCount + 1}`,
-                  );
-                }
-
-                // ================= RETRY APPLY =================
-
-                retryCount++;
-
-                await page.evaluate(() => {
-                  const btn = [...document.querySelectorAll("button")].find(
-                    (b) => b.innerText.trim() === "Apply",
-                  );
-
-                  if (btn) btn.click();
-                });
-
-                await new Promise((resolve) => setTimeout(resolve, 3000));
-              }
-
-              // ================= FINAL FALLBACK =================
-
-              if (!/^[0-9,]+$/.test(totalResult)) {
-                totalResult = "0";
-
-                console.log("❌ FINAL RESULT FAILED => USING 0");
-              }
-
-              // =====================================================
-              // ================= FIND EXISTING OBJECT ===============
-              // =====================================================
-
-              let stationResult = finalResults.find(
-                (item) =>
-                  item.circle_name === circle_name &&
-                  item.station_name === stationName,
+                  return /^[0-9,]+$/.test(el.innerText.trim());
+                },
+                {
+                  timeout: 120000,
+                  polling: 500,
+                },
               );
 
-              // ================= CREATE IF NOT EXISTS =================
+              await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              if (!stationResult) {
-                stationResult = {
-                  circle_name,
-                  station_name: stationName,
-                  fields: {},
-                };
+              // =============================================
+              // GET RESULT
+              // =============================================
 
-                finalResults.push(stationResult);
+              let fieldResult = "0";
+
+              try {
+                fieldResult = await page.$eval(
+                  ".table-pagination p span",
+                  (el) => el.innerText.trim(),
+                );
+
+                if (!/^[0-9,]+$/.test(fieldResult)) {
+                  fieldResult = "0";
+                }
+              } catch (err) {
+                fieldResult = "0";
               }
 
-              // ================= SAVE FIELD RESULT =================
+              // =============================================
+              // SAVE RESULT
+              // =============================================
 
-              stationResult.fields[field] = totalResult;
-
-              // ================= LOG RESULT =================
+              stationResult.fields[recordField.key] = fieldResult;
 
               console.log(
                 "Circle =>",
@@ -343,25 +302,105 @@ const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
                 "| Station =>",
                 stationName,
                 "| Field =>",
-                field,
+                recordField.label,
                 "| Result =>",
-                totalResult,
+                fieldResult,
               );
-            } catch (stationError) {
+
+              // =============================================
+              // CLEAR FIELD AFTER APPLY
+              // =============================================
+
+              // CLEAR FIELD AFTER APPLY
+              // remove selected tags like:
+              // Chowki Incharge ×
+              // +2...
+              // =============================================
+
+              await page.evaluate(() => {
+                const input = document.querySelector("#rc_select_9");
+
+                if (!input) return;
+
+                const select = input.closest(".ant-select");
+
+                if (!select) return;
+
+                // ===========================================
+                // REMOVE ALL SELECTED ITEMS
+                // ===========================================
+
+                const removeButtons = select.querySelectorAll(
+                  ".ant-select-selection-item-remove",
+                );
+
+                removeButtons.forEach((btn) => {
+                  btn.click();
+                });
+
+                // ===========================================
+                // ALSO CLICK CLEAR BUTTON IF EXISTS
+                // ===========================================
+
+                const clearBtn = select.querySelector(".ant-select-clear");
+
+                if (clearBtn) {
+                  clearBtn.click();
+                }
+              });
+
+              //==============================================
+
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            } catch (fieldError) {
               console.log(
-                "❌ STATION ERROR =>",
+                "❌ FIELD ERROR =>",
                 stationName,
-                stationError.message,
+                "| Field =>",
+                recordField.label,
+                fieldError.message,
               );
+
+              stationResult.fields[recordField.key] = "0";
             }
           }
-        } catch (circleError) {
-          console.log("❌ CIRCLE ERROR =>", circle_name, circleError.message);
+
+          // =================================================
+          // SAVE FINAL RESULT
+          // =================================================
+
+          finalResults.push(stationResult);
+
+          // =================================================
+          // CLEAR APPROVED
+          // =================================================
+
+          await page.evaluate(() => {
+            const input = document.querySelector("#rc_select_6");
+
+            if (!input) return;
+
+            const select = input.closest(".ant-select");
+
+            if (!select) return;
+
+            const clearBtn = select.querySelector(".ant-select-clear");
+
+            if (clearBtn) clearBtn.click();
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          console.log("✅ Station Completed =>", stationName);
+        } catch (stationError) {
+          console.log("❌ STATION ERROR =>", stationName, stationError.message);
         }
       }
     }
 
-    // ================= FINAL RESULTS =================
+    // =====================================================
+    // FINAL RESULTS
+    // =====================================================
 
     console.log("================ FINAL RESULTS ================");
 
@@ -374,6 +413,8 @@ const yakshCriminalRecordMyJurisdictionHeaders = async (page) => {
     return [];
   }
 };
+
+
 
 // ======================================================
 // ================= MAIN PUPPETEER =====================
@@ -421,9 +462,11 @@ const yakshPuppeteertesting = async () => {
       waitUntil: "domcontentloaded",
     });
 
-    const jsondata = await yakshCriminalRecordMyJurisdictionHeaders(page);
+    // const jsondata = await yakshCriminalRecordMyJurisdictionHeaders(page);
 
-    await exportStationFieldsToExcel(jsondata);
+    // await exportStationFieldsToExcel(jsondata);
+
+    await yakshBeatSuchnaApproved(page);
 
     console.log("✅ ALL TASK COMPLETED");
   } catch (error) {
